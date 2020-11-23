@@ -23,10 +23,10 @@ def convert_midi_to_note_seq(root_dir):
     note_seq_arr1 = np.array([])
 
     for dir in dirs:
-        note_seq_arr1 = np.concatenate((note_seq_arr1, convert_midi_to_note_seq(dir)))
+        note_seq_arr1 = np.append(note_seq_arr1, convert_midi_to_note_seq(dir))
     
     note_seq_arr2 = np.array([midi_io.midi_file_to_note_sequence(f) for f in files])    
-    return np.concatenate((note_seq_arr1, note_seq_arr2))
+    return np.append(note_seq_arr1, note_seq_arr2)
 
 def midi_file_paths_in_dir(root_dir):
     file_paths = [join(root_dir, f) for f in listdir(root_dir) if isfile(join(root_dir, f))]
