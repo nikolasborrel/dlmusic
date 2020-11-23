@@ -1,7 +1,8 @@
 from loaders.dataloader_midi import load_midi_to_seq
 import note_seq
 
-sequences = load_midi_to_seq('../maestro-v2.0.0_small', recursive=True)
+root_dir = '/home/sarantos/Documents/Music_AI/maestro-v2.0.0-midi'
+sequences = load_midi_to_seq(root_dir, recursive=True)
 
 print(sequences.size)
 
