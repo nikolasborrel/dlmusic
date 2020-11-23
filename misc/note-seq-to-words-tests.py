@@ -1,6 +1,7 @@
 from collections import Counter
 from note_seq import midi_io
-from utils.tools import equal_temperament_scale
+#from utils.tools import equal_temperament_scale
+import numpy as np
 
 def parse_note_seq_object(midi_note_seq):
     """
@@ -42,6 +43,22 @@ def ceil_midi_times(start_times, end_times, precision=3):
     end_times = np.vectorize(ceil_to_precision)(end_times)
     return start_times, end_times
 
+def equal_temperament_scale(n_octaves=None):
+    scale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+    notes = []
+    if n_octaves == None:
+        n_octaves = 9
+    for n in range(0,n_octaves):
+        octave = [note + str(n) for note in scale]
+        notes += octave
+    f_ref = 440 #A4
+    notes_freq = []
+    for i in range(0, len(notes)):
+        val = f_ref * 2 ** ((- notes.index('A4') + i) / 12)
+        notes_freq.append(val)
+    return notes, notes_freq
+
+
 def get_midi_pitch_to_note_names_dict():
     note_names, _ = equal_temperament_scale()
     for idx, note in enumerate(note_names):
@@ -66,13 +83,13 @@ pitches, velocities, start_times, end_times = parse_note_seq_object(k)
 
 #Ceil start and end times to precision 3 
 s_t, e_t = ceil_midi_times(start_times, end_times)
+durations = e_t - s_t 
 
 midi_number_to_note_dict = get_midi_pitch_to_note_names_dict()
 
 #Get vocabulary spanning from 'A0' to 'B8'
 vocab = list(midi_number_to_note_dict.values())
 vocab_size = len(vocab)
-
 
 words = [midi_number_to_note_dict[pitch] for pitch in pitches]
 print(words)
