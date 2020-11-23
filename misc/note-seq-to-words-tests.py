@@ -1,6 +1,6 @@
 from collections import Counter
 from note_seq import midi_io
-#from utils.tools import equal_temperament_scale
+from utils.tools import equal_temperament_scale
 import numpy as np
 
 def parse_note_seq_object(midi_note_seq):
