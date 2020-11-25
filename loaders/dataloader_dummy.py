@@ -2,21 +2,7 @@ import numpy as np
 
 from collections import defaultdict
 from torch.utils import data
-
-class Dataset(data.Dataset):
-    def __init__(self, inputs, targets):
-        self.inputs = inputs
-        self.targets = targets
-
-    def __len__(self):
-        # Return the size of the dataset
-        return len(self.targets)
-
-    def __getitem__(self, index):
-        # Retrieve inputs and targets at the given index
-        X = self.inputs[index]
-        y = self.targets[index]
-        return X, y
+from loaders.dataset import Dataset
 
 # main function
 def load_dummy_dataset(print_info=False):

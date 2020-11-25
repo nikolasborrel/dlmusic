@@ -237,3 +237,21 @@ def find_closest_note(notes, notes_freq, f):
     note = notes[indexes[0]]
     print('Closest note is {} with distance {} Hz'.format(note, distances[0]))
     return note
+
+def split_list(list_, chunk_size, overlap):
+    if chunk_size < 1:
+        raise Exception("chunk size too small")
+    if overlap >= chunk_size:
+        raise Exception("overlap too large")
+
+    return [list_[i:i+chunk_size] for i in range(0, len(list_)-chunk_size+1, chunk_size-overlap)]
+
+def pad_sequences(sequences: [[]], maxlen) -> [[]]:
+    seqs_padded = [[0 for col in range(maxlen)] for row in range(len(sequences))]
+    for i in range(0, len(sequences)-1):
+        if len(sequences) < maxlen:
+            seqs_padded[i,0:len(sequences)-1] = sequences
+        else:
+            seqs_padded[i,:] = sequences[0:maxlen-1]
+
+    return seqs_padded

@@ -1,11 +1,10 @@
+
 import numpy as np
 import matplotlib.pyplot as plt
-
 from models.model_lstm import MyRecurrentNet
-from loaders.dataloader_dummy import load_dummy_dataset
-from utils.hot_encoder import one_hot_encode_sequence
+#from loaders.dataloader_dummy import load_dummy_dataset
+from loaders.dataloader_midi import create_dataset_from_midi
 from training.train_lstm import train_lstm
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,9 +13,18 @@ import torch.optim as optim
 # Set seed such that we always get the same dataset
 np.random.seed(42)
 
+path_to_midi_dir = '/Users/nikolasborrel/github/maestro-v2.0.0_one_song'
+
 # Hyper-parameters
 num_epochs = 200
-training_set, validation_set, test_set, word_to_idx, idx_to_word, num_sequences, vocab_size = load_dummy_dataset(True)
+training_set, validation_set, test_set, tokenizer \
+    = create_dataset_from_midi(path_to_midi_dir, print_info=True)
+word_to_idx = tokenizer.note_index
+idx_to_word = tokenizer.index_note
+num_sequences = tokenizer.piece_count
+vocab_size = tokenizer.vocab_size
+
+#training_set, validation_set, test_set, word_to_idx, idx_to_word, num_sequences, vocab_size = load_dummy_dataset(True)
 
 # Initialize a new LSTM network
 net = MyRecurrentNet(vocab_size)
