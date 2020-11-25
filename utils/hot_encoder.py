@@ -36,3 +36,21 @@ def one_hot_encode_sequence(sequence, vocab_size, word_to_idx):
     encoding = encoding.reshape(encoding.shape[0], encoding.shape[1], 1)
     
     return encoding
+
+def one_hot_encode_sequence_dict(sequence, vocab_size, word_to_idx):
+    """
+    One-hot encodes a sequence of words given a fixed vocabulary size.
+    
+    Args:
+     `sentence`: a list of words to encode
+     `vocab_size`: the size of the vocabulary
+     
+    Returns a 3-D numpy array of shape (num words, vocab size, 1).
+    """
+    # Encode each word in the sentence
+    encoding = np.array([one_hot_encode(word_to_idx[word], vocab_size) for word in sequence])
+
+    # Reshape encoding s.t. it has shape (num words, vocab size, 1)
+    encoding = encoding.reshape(encoding.shape[0], encoding.shape[1], 1)
+    
+    return encoding

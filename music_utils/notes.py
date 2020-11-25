@@ -36,3 +36,8 @@ def get_midi_pitch_to_note_names_dict():
             break
     midi_number_to_note = {number: note for number, note in zip(range(21,120), note_names[idx:])}
     return midi_number_to_note
+
+midi_pitch_to_note_names_dict = get_midi_pitch_to_note_names_dict() # static
+
+def midi_number_to_note(midi_number):
+    return midi_pitch_to_note_names_dict[midi_number]

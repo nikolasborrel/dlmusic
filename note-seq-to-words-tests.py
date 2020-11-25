@@ -15,10 +15,10 @@ midi_path = maestro_dir + filename
 k = midi_io.midi_file_to_note_sequence(midi_path)
 
 note_seq_note_props = list( 
-    map(lambda x: (x.pitch, x.velocity, x.start_time, x.end_time), k.notes)
+    map(lambda x: (x.pitch, x.velocity, x.start_time, x.end_time, ceil_to(x.end_time-x.start_time)), k.notes)
     )
 
-durations = list(map(lambda t: ceil_to(t[3]-t[2]), note_seq_note_props))
+durations = note_seq_note_props[5]
 
 midi_number_to_note_dict = get_midi_pitch_to_note_names_dict()
 
