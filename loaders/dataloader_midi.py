@@ -9,10 +9,10 @@ from os.path import isfile, isdir, join
 import numpy as np
 from utils.tools import timer
 
-def create_dataset_from_midi(root_dir, note_chunk=10, predict_num_notes=1, print_info=False, recursive=False) -> ([], [], [], MusicTokenizer):
+def create_dataset_from_midi(root_dir, note_chunk=10, num_pred=1, print_info=False, recursive=False) -> ([], [], [], MusicTokenizer):
     note_seqs = load_midi_to_seq(root_dir, recursive=False)
 
-    notes_pieces = [split_list(seq.notes,note_chunk,predict_num_notes) for seq in note_seqs]
+    notes_pieces = [split_list(seq.notes,note_chunk,num_pred) for seq in note_seqs]
 
     t = MusicTokenizer()
 
@@ -36,7 +36,7 @@ def create_dataset_from_midi(root_dir, note_chunk=10, predict_num_notes=1, print
 
     print("Testing sequences:\n", sequences)
 
-    training_set, validation_set, test_set = create_datasets(sequences, Dataset)
+    training_set, validation_set, test_set = create_datasets(sequences, Dataset, num_pred=num_pred)
 
     if print_info:
         print(f'We have {t.piece_count} sentences and {t.vocab_size} unique tokens in our dataset (including UNK).\n')
@@ -79,7 +79,7 @@ def open_file(path):
     with open(path, 'r') as f:
         return f.read()
 
-def create_datasets(sequences, dataset_class, p_train=0.8, p_val=0.1, p_test=0.1) -> ([], [], []):
+def create_datasets(sequences, dataset_class, num_pred=1, p_train=0.8, p_val=0.1, p_test=0.1) -> ([], [], []):
     # Define partition sizes
     num_train = int(len(sequences)*p_train)
     num_val = int(len(sequences)*p_val)
@@ -90,15 +90,15 @@ def create_datasets(sequences, dataset_class, p_train=0.8, p_val=0.1, p_test=0.1
     sequences_val = sequences[num_train:num_train+num_val]
     sequences_test = sequences[-num_test:]
 
-    def get_inputs_targets_from_sequences(sequences):
+    def get_inputs_targets_from_sequences(sequences, num_pred):
         # Define empty lists
         inputs, targets = [], []
         
         # Append inputs and targets s.t. both lists contain L-1 words of a sentence of length L
         # but targets are shifted right by one so that we can predict the next word
         for sequence in sequences:
-            inputs.append(sequence[:-1])
-            targets.append(sequence[1:])
+            inputs.append(sequence[:-num_pred])
+            targets.append(sequence[num_pred:])
             
         return inputs, targets
 
