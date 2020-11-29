@@ -4,6 +4,8 @@ from music_utils.tokenizer import MusicTokenizer
 from loaders.dataset import Dataset
 from utils.tools import split_list
 from note_seq import midi_io
+#import pretty_midi as pm # use this to create pm.KeySignature(key_number,time)
+from magenta.pipelines.note_sequence_pipelines import TranspositionPipeline
 from os import listdir, open
 from os.path import isfile, isdir, join
 import numpy as np
@@ -11,6 +13,8 @@ from utils.tools import timer
 
 def create_dataset_from_midi(root_dir, note_chunk=10, num_pred=1, print_info=False, recursive=False) -> ([], [], [], MusicTokenizer):
     note_seqs = load_midi_to_seq(root_dir, recursive=False)
+    
+    note_seqs = transpose_note_seqs_to_c(note_seqs)
 
     notes_pieces = [split_list(seq.notes,note_chunk,num_pred) for seq in note_seqs]
 
@@ -24,17 +28,16 @@ def create_dataset_from_midi(root_dir, note_chunk=10, num_pred=1, print_info=Fal
     # summarize what was learned
     print(t.note_counts)
     print(t.piece_count)
-    print(t.note_index)
-    print(t.note_pieces)
+    #print(t.note_index)
+    #print(t.note_pieces)
     # integer encode documents - TODO
     #encoded_docs = t.texts_to_matrix(docs, mode='count')
     #print(encoded_docs)
 
     sequences = t.note_seqs_to_sequences(notes_sub_pieces)
-    #maxlen = 100
-    #test_padded = pad_sequences(test_sequences, maxlen=maxlen)
+    #test_padded = pad_sequences(test_sequences, maxlen=100)
 
-    print("Testing sequences:\n", sequences)
+    #print("Testing sequences:\n", sequences)
 
     training_set, validation_set, test_set = create_datasets(sequences, Dataset, num_pred=num_pred)
 
@@ -103,9 +106,9 @@ def create_datasets(sequences, dataset_class, num_pred=1, p_train=0.8, p_val=0.1
         return inputs, targets
 
     # Get inputs and targets for each partition
-    inputs_train, targets_train = get_inputs_targets_from_sequences(sequences_train)
-    inputs_val, targets_val = get_inputs_targets_from_sequences(sequences_val)
-    inputs_test, targets_test = get_inputs_targets_from_sequences(sequences_test)
+    inputs_train, targets_train = get_inputs_targets_from_sequences(sequences_train, num_pred)
+    inputs_val, targets_val = get_inputs_targets_from_sequences(sequences_val, num_pred)
+    inputs_test, targets_test = get_inputs_targets_from_sequences(sequences_test, num_pred)
 
     # Create datasets
     training_set = dataset_class(inputs_train, targets_train)
@@ -113,3 +116,22 @@ def create_datasets(sequences, dataset_class, num_pred=1, p_train=0.8, p_val=0.1
     test_set = dataset_class(inputs_test, targets_test)
 
     return training_set, validation_set, test_set
+
+def transpose_note_seqs_to_c(note_seqs):
+    note_seqs_transposed = []
+    for k in note_seqs:
+        if len(k.key_signatures) > 1:
+            print("WARNING: more than one key signatures were found - only the first signature is used.")
+
+        if len(k.key_signatures) > 0:
+            transpose_interval = -k.key_signatures[0].key
+            tp = TranspositionPipeline([transpose_interval])
+            k_transformed = tp.transform(k)[0]            
+            # TODO: create datastructure to keep original key as well, to be able to transpose back if needed
+            # set FIRST signature to key of C. 
+            k_transformed.key_signatures[0].key = 0 # NOTE: printing is empty for C=0, 
+            note_seqs_transposed.append(k_transformed)
+        else:
+            note_seqs_transposed.append(k)
+    
+    return note_seqs_transposed
