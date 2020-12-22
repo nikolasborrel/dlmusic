@@ -16,7 +16,7 @@ from utils.tools import get_index_string
 def create_dataset_from_midi(root_dir, note_chunk=10, num_pred=1, print_info=False, recursive=False) -> ([], [], [], MusicTokenizer):
     note_seqs = load_midi_to_seq(root_dir, recursive=False)
     
-    note_seqs = transpose_note_seqs_to_c(note_seqs)
+    note_seqs = transpose_note_seqs(note_seqs)
 
     notes_pieces = [split_list(seq.notes,note_chunk,num_pred) for seq in note_seqs]
 
@@ -119,19 +119,19 @@ def create_datasets(sequences, dataset_class, num_pred=1, p_train=0.8, p_val=0.1
 
     return training_set, validation_set, test_set
 
-def transpose_note_seqs_to_c(note_seqs):
+def transpose_note_seqs(note_seqs, transpose_to_key=0):
     note_seqs_transposed = []
     for k in note_seqs:
         if len(k.key_signatures) > 1:
             print("WARNING: more than one key signatures were found - only the first signature is used.")
 
         if len(k.key_signatures) > 0:
-            transpose_interval = -k.key_signatures[0].key
+            transpose_interval = transpose_to_key - k.key_signatures[0].key
             tp = TranspositionPipeline([transpose_interval])
             k_transformed = tp.transform(k)[0]            
             # TODO: create datastructure to keep original key as well, to be able to transpose back if needed
             # set FIRST signature to key of C. 
-            k_transformed.key_signatures[0].key = 0 # NOTE: printing is empty for C=0, 
+            k_transformed.key_signatures[0].key = transpose_to_key # NOTE: printing is empty for C=0, 
             note_seqs_transposed.append(k_transformed)
         else:
             note_seqs_transposed.append(k)
