@@ -3,8 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from utils.hot_encoder import one_hot_encode_sequence
 
-def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encoder_decoder):
+def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, word_to_idx):
     # Define a loss function and optimizer for this problem
     # YOUR CODE HERE!
     criterion = nn.CrossEntropyLoss()
@@ -23,44 +24,26 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
         net.eval()
             
         # For each sentence in validation set
-        for input_and_target in validation_set:
+        for inputs, targets in validation_set:
             optimizer.zero_grad()
 
             # One-hot encode input and target sequence
-
-            #### TODO - ONLY FOR DEBUG/TESTING ####
-
-            # input_and_target is a tuple, first element is melody, second is bass
-            # 
-            # inputs_one_hot, label_not_used = encoder_decoder.encode(input_and_target[0])        # MELODY
-            # inputs_one_hot_not_used, targets_idx = encoder_decoder.encode(input_and_target[1])  # BASS
+            inputs_one_hot = one_hot_encode_sequence(inputs, vocab_size, word_to_idx)
+            targets_idx = [word_to_idx[word] for word in targets]
             
-            inputs_one_hot, targets_idx = encoder_decoder.encode(input_and_target[0])
-
-            #print(inputs_one_hot)
-            #print(targets_idx)
-
-            #inputs_one_hot = one_hot_encode_sequence(inputs, vocab_size, word_to_idx)
-            #targets_idx = [word_to_idx[word] for word in targets]
-            
-            # NBJ comment: 3 dimensional array needed (outer most of size 1). Not sure why pyTorch needs this structure
-            inputs_one_hot_3D = [inputs_one_hot]
-
-            # Convert input to tensor            
-            inputs_one_hot_3D = torch.Tensor(inputs_one_hot_3D) 
-            #inputs_one_hot = inputs_one_hot.permute(0, 2, 1) # not needed
+            # Convert input to tensor
+            inputs_one_hot = torch.Tensor(inputs_one_hot)
+            inputs_one_hot = inputs_one_hot.permute(0, 2, 1)
             
             # Convert target to tensor
             targets_idx = torch.LongTensor(targets_idx)
             
             # Forward pass
             # YOUR CODE HERE!
-            outputs = net.forward(inputs_one_hot_3D)
+            outputs = net.forward(inputs_one_hot)
             
             # Compute loss
             # YOUR CODE HERE!
-
-            ## IMPORTANT: how to evaluate loss when input/output is different? See Seq2Seq paper
             loss = criterion(outputs, targets_idx)
             
             # Update loss
@@ -69,32 +52,23 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
         net.train()
         
         # For each sentence in training set
-        for input_and_target in training_set:
+        for inputs, targets in training_set:
             optimizer.zero_grad()
 
             # One-hot encode input and target sequence
-            # inputs_one_hot, _ = encoder_decoder.encode(input_and_target[0])
-            # _, targets_idx = encoder_decoder.encode(input_and_target[1])
-
-            # TODO - SAME COMMENTS as above regarding validation
-            inputs_one_hot, targets_idx = encoder_decoder.encode(input_and_target[0])
-
-            # inputs_one_hot = one_hot_encode_sequence(inputs, vocab_size, word_to_idx)
-            # targets_idx = [word_to_idx[word] for word in targets]
+            inputs_one_hot = one_hot_encode_sequence(inputs, vocab_size, word_to_idx)
+            targets_idx = [word_to_idx[word] for word in targets]
             
-            # NBJ comment: 3 dimensional array needed (outer most of size 1). Not sure why pyTorch needs this structure
-            inputs_one_hot_3D = [inputs_one_hot]
-
             # Convert input to tensor
-            inputs_one_hot_3D = torch.Tensor(inputs_one_hot_3D)
-            #inputs_one_hot = inputs_one_hot.permute(0, 2, 1) # not needed
+            inputs_one_hot = torch.Tensor(inputs_one_hot)
+            inputs_one_hot = inputs_one_hot.permute(0, 2, 1)
             
             # Convert target to tensor
             targets_idx = torch.LongTensor(targets_idx)
             
             # Forward pass
             # YOUR CODE HERE!
-            outputs = net.forward(inputs_one_hot_3D)
+            outputs = net.forward(inputs_one_hot)
             
             # Compute loss
             # YOUR CODE HERE!

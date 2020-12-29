@@ -8,7 +8,7 @@ from utils.tools import split_list
 
 #%%
 #PARAMS
-maestro_dir = '/Users/nikolasborrel/github/maestro-v2.0.0/'
+maestro_dir = '/Users/nikolasborrel/github/midi_data/maestro-v2.0.0/'
 filename = '2018/MIDI-Unprocessed_Chamber1_MID--AUDIO_07_R3_2018_wav--2.midi'
 midi_path = maestro_dir + filename
 
@@ -42,3 +42,4 @@ vocab_size = len(t.note_counts)
 one_hot = one_hot_encode_sequence(sequences[0], vocab_size, t.note_index)
 
 print("One hot for piece with index 0:\n", one_hot)
+# %%

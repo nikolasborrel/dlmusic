@@ -1,82 +1,113 @@
 from collections import OrderedDict
 from music_utils.notes import midi_number_to_note
+import note_seq
+from note_seq import melodies_lib
+from note_seq import sequences_lib
+from note_seq.melodies_lib import Melody
+from note_seq import encoder_decoder
+from note_seq import melody_encoder_decoder
+from note_seq import midi_io
+from note_seq.protobuf import music_pb2
+from note_seq.constants import DEFAULT_QUARTERS_PER_MINUTE
+from note_seq.protobuf.generator_pb2 import GeneratorOptions
+from note_seq.protobuf.music_pb2 import NoteSequence
+from typing import Tuple, List
 
-class MusicTokenizer():
-    def __init__(self) -> None :
-        self._note_counts = OrderedDict() 
-        self._note_pieces = {} 
-        self._note_index = {}
-        self._index_note = {}
-        self._piece_count = 0
+class TokenizerMonophonic():
+    
+    DEFAULT_MIN_NOTE = 48
+    DEFAULT_MAX_NOTE = 84
 
-    def fit_on_notes_pieces(self, notes_pieces):
-        self._piece_count = len(notes_pieces)        
+    #min=60 max=72 -> one octave    
+    def __init__(self, min_note=DEFAULT_MIN_NOTE, max_note=DEFAULT_MAX_NOTE) -> None :
+        # self._note_counts = OrderedDict() 
+        # self._note_pieces = {} 
+        # self._note_index = {}
+        # self._index_note = {}
+        self._songs = []
+        self._song_count = 0
+        self._min_note = min_note
+        self._max_note = max_note
 
-        unique_index_count = 0
-        for piece_indx in range(len(notes_pieces)):
-            piece_was_added = False
+        self._encoder_decoder = encoder_decoder.OneHotEventSequenceEncoderDecoder(
+            melody_encoder_decoder.MelodyOneHotEncoding(min_note, max_note)) # min_note=DEFAULT_MIN_NOTE, max_note=DEFAULT_MAX_NOTE
 
-            note_seq = notes_pieces[piece_indx]
-            for note in note_seq:                
-                note_pitch_encoded = midi_number_to_note(note.pitch)           
+        # Additional labels are NO_EVENT = 0 and NOTE_OFF = 1
+        assert(self._encoder_decoder.input_size, max_note - min_note + 2) 
+        assert(self._encoder_decoder.num_classes, max_note - min_note + 2)
 
-                if note_pitch_encoded in self._note_counts:
-                    self._note_counts[note_pitch_encoded] += 1
-                else:
-                    self._note_counts[note_pitch_encoded] = 1
 
-                if note_pitch_encoded not in self._note_index:
-                    self._note_index[note_pitch_encoded] = unique_index_count
-                    self._index_note[unique_index_count] = note_pitch_encoded
-                    unique_index_count += 1
+    def add_songs_from_sequences(self, songs: List[NoteSequence], instruments: Tuple[int, int], steps_per_quarter=4, ignore_polyphonic_notes=True):
+        '''
+        sequences is a list of list of note_seq, each inner list corresponding to a song
+        '''
+        for sequence in songs:            
+            quantized_sequence = sequences_lib.quantize_note_sequence(
+                sequence, steps_per_quarter=steps_per_quarter)
 
-                if not piece_was_added:
-                    if note_pitch_encoded in self._note_pieces:
-                        self._note_pieces[note_pitch_encoded] += 1
-                    else:
-                        self._note_pieces[note_pitch_encoded] = 1                    
-                    piece_was_added = True
-        
-        unique_index_count = len(self._note_index)
-        self._note_index['<UNK>'] = unique_index_count
-        self._index_note[unique_index_count] = '<UNK>'
+            # EXTRACT FIRST INSTRUMENT
+            melody0 = Melody()
+            melody0.from_quantized_sequence(
+                quantized_sequence, instrument=instruments[0], ignore_polyphonic_notes=ignore_polyphonic_notes)
+            
+            transpose_to_key = 0        
 
-    def note_seqs_to_sequences(self, notes_pieces) -> [[]]:
-        encoded_seqs = [[] for row in range(len(notes_pieces))]
+            # squeeze midi into octaves determined by min_note and max_note and transposes to key = 0 => C major / A minor
+            melody0.squash(
+                self._min_note,
+                self._max_note,
+                transpose_to_key)
 
-        for piece_indx in range(len(notes_pieces)):
-            notes = notes_pieces[piece_indx]
+            # EXTRACT SECOUND INSTRUMENT
+            melody1 = Melody()
+            melody1.from_quantized_sequence(
+                quantized_sequence, instrument=instruments[1], ignore_polyphonic_notes=ignore_polyphonic_notes)
+            
+            transpose_to_key = 0        
 
-            for note_indx in range(len(notes)):
-                note = notes[note_indx]                
-                encoded_seqs[piece_indx].append(midi_number_to_note(note.pitch))
-        
-        return encoded_seqs
+            # squeeze midi into octaves determined by min_note and max_note and transposes to key = 0 => C major / A minor
+            melody1.squash(
+                self._min_note,
+                self._max_note,
+                transpose_to_key)
 
-    # A (ordered) dictionary of words and their counts.
+            if len(melody0) > 0 and len(melody1) > 0:
+                self._song_count = self._song_count + 1
+                self._songs.append((melody0, melody1))
+
     @property
-    def note_counts(self):
-        return self._note_counts
+    def songs(self):
+        return self._songs
 
-    # A dictionary of words and how many documents each appeared in.
+    # The encoder/decoder for a monophonic sequence
     @property
-    def note_pieces(self):
-        return self._note_pieces
+    def encoder_decoder(self):
+        return self._encoder_decoder
 
-    # A dictionary of notes and their uniquely assigned integers.
-    @property
-    def note_index(self):
-        return self._note_index
+    # # A (ordered) dictionary of words and their counts.
+    # @property
+    # def note_counts(self):
+    #     return self._note_counts
 
-    @property
-    def index_note(self):
-        return self._index_note
+    # # A dictionary of words and how many documents each appeared in.
+    # @property
+    # def note_pieces(self):
+    #     return self._note_pieces
+
+    # # A dictionary of notes and their uniquely assigned integers.
+    # @property
+    # def note_index(self):
+    #     return self._note_index
+
+    # @property
+    # def index_note(self):
+    #     return self._index_note
 
     # An integer count of the total number of documents that were used to fit the Tokenizer.
     @property
-    def piece_count(self):
-        return self._piece_count
+    def song_count(self):
+        return self._song_count
 
     @property
     def vocab_size(self):
-        return len(self._note_index)
+        return self._encoder_decoder.num_classes
