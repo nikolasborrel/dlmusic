@@ -14,6 +14,7 @@ import os
 from utils.tools import get_index_string
 from typing import List, Tuple
 import string
+import tqdm
 
 from note_seq.melodies_lib import Melody
 
@@ -121,3 +122,121 @@ def midi_file_paths_in_dir(root_dir):
 def open_file(path):
     with open(path, 'r') as f:
         return f.read()
+        
+@timer
+def remove_files_from_clean_midi(dataset_dir, 
+                                 midi_read=midi_io.midi_file_to_note_sequence):
+    """
+    Parameters
+    ----------
+    dataset_dir : directory path of dataset
+    midi_read : function to read midi
+                The default is midi_io.midi_file_to_note_sequence.
+    
+    Returns
+    ----------
+    del_files: str of artist name and song name deleted
+    n_files: total number of midi files before removal
+    errors: set of all errors for the files deleted
+    """
+    errors = set()
+    del_files = []
+    del_art = []
+    n_files = 0
+    for root, subdirs, files in os.walk(dataset_dir):
+        if len(files) > 0:
+            art_name = root[get_index_string(root,'/')[-1] + 1:]
+            print(art_name)
+            count = 0
+            for file in files:
+                if not (file.lower().endswith('.mid') or file.lower().endswith('.midi')):
+                    continue
+                n_files += 1
+                filepath = root + '/' + file
+                try:
+                    k = midi_read(filepath)
+                except Exception as e:
+                    if 'KeyboardInterrupt' in str(e):
+                        print('Keyboard Interrupt, file {} not removed'.format(file))
+                        return del_files, n_files, errors
+                    print(e)
+                    count += 1
+                    errors.add(e)
+                    print('From {} file: {} is deleted'.format(art_name, file))
+                    os.remove(filepath)
+                    #del_files.append((art_name + '/' + file, *e))
+                    del_files.append(art_name+'/' + file)
+                    #if len(files) == count:
+                    #    os.rmdir(root)
+                    #    del_art.append(art_name)
+                    #    print('Removing {} folder'.format())
+                            
+    print('{} files deleted out of {}'.format(len(del_files), n_files))
+    #print('{} Artists deleted'.format(len(del_art)))
+    return del_files, n_files, errors
+
+
+def get_artists_midi_dict_generator(dataset_dir, 
+                                  midi_read=midi_io.midi_file_to_note_sequence):
+    """
+    Parameters
+    ----------
+    dataset_dir : directory path of dataset
+    midi_read : function to read midi
+                The default is midi_io.midi_file_to_note_sequence.
+
+    """
+    
+    
+    art_midi = {} #Dictionary where keys: artist names, vals: generator object of midi_read func
+    art_nfiles = {}
+    art_songs = {}
+    for root, subdirs, files in os.walk(dataset_dir):
+        if len(files) > 0:
+            art_name = root[get_index_string(root,'/')[-1] + 1:]
+            print(art_name)
+            count = 0
+            filepaths = [root + '/' + f for f in files if (f.lower().endswith('.mid') or f.lower().endswith('.midi'))]
+            art_midi[art_name] = map(midi_read, filepaths)
+            art_nfiles[art_name] = len(filepaths)
+            songs = list(map(lambda x : x[len(root + '/'):-4], filepaths))
+            art_songs[art_name] = songs
+    return art_midi, art_nfiles, art_songs
+
+def get_instruments_from_NoteSequence(k):
+    """
+    Parameters
+    ----------
+    k : note_seq.protobuf.music_pb2.NoteSequence object
+
+    Returns
+    -------
+    instruments : Dictionary with keys: id integer of instrument
+                                  vals: str text of instrument description
+    bass_idxs : Indexes where bass is in instrument description
+    melody_idxs : Indexes where melody is in instrument description
+
+    """
+    unique_instruments = set([m.instrument for m in k.notes])
+    instruments = {id: inst.name.rstrip() for id, inst in zip(range(0, len(unique_instruments)),
+                                            k.instrument_infos)}
+    bass_idxs = []
+    melody_idxs = []
+    for inst_id, instrument in instruments.items():
+        if 'bass' in instrument.lower():
+            bass_idxs.append(inst_id)
+            
+        if 'melody' in instrument.lower():
+            melody_idxs.append(inst_id)
+    return instruments, bass_idxs, melody_idxs
+
+
+def read_midis_from_clean_midi_BM(folder, read_midi):
+    midis = []
+    for root, subdirs, files in os.walk(folder):
+        for idx, f in enumerate(files):
+            midis.append(read_midi(folder + '/' + f))
+            midis[idx].filename = f
+            #midis = [midi_io.midi_file_to_note_sequence(dest_folder + '/' + f) for f in tqdm(files)]
+    return midis
+
