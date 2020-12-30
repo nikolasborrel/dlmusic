@@ -42,4 +42,4 @@ vocab_size = len(t.note_counts)
 one_hot = one_hot_encode_sequence(sequences[0], vocab_size, t.note_index)
 
 print("One hot for piece with index 0:\n", one_hot)
-# %%
+#%%

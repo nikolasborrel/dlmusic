@@ -41,9 +41,14 @@ class TokenizerMonophonic():
         '''
         sequences is a list of list of note_seq, each inner list corresponding to a song
         '''
-        for sequence in songs:            
-            quantized_sequence = sequences_lib.quantize_note_sequence(
-                sequence, steps_per_quarter=steps_per_quarter)
+        self.loading_errors = []
+        for sequence in songs:      
+            try:
+                quantized_sequence = sequences_lib.quantize_note_sequence(
+                    sequence, steps_per_quarter=steps_per_quarter)
+            except Exception as e:
+                self.loading_errors.append((sequence.filename, e))
+            print(loading_errors)
 
             # EXTRACT FIRST INSTRUMENT
             melody0 = Melody()
