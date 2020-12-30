@@ -51,31 +51,27 @@ class TokenizerMonophonic():
                     sequence, steps_per_quarter=steps_per_quarter)
             except Exception as e:
                 self.loading_errors.append((sequence.filename, e))
-                print(loading_errors)
+                continue
 
             # EXTRACT FIRST INSTRUMENT
             melody0 = Melody()
             melody0.from_quantized_sequence(
                 quantized_sequence, instrument=instruments[0], ignore_polyphonic_notes=ignore_polyphonic_notes, gap_bars=100000000)
 
-            transpose_to_key = 0
-
             # squeeze midi into octaves determined by min_note and max_note and transposes to key = 0 => C major / A minor
             melody0.squash(
                 self._min_note,
-                self._max_note) # transpose_to_key -> not working properly!
+                self._max_note) # transpose_to_key = 0 -> not working properly!
 
             # EXTRACT SECOUND INSTRUMENT
             melody1 = Melody()
             melody1.from_quantized_sequence(
                 quantized_sequence, instrument=instruments[1], ignore_polyphonic_notes=ignore_polyphonic_notes, gap_bars=100000000)
 
-            transpose_to_key = 0
-
             # squeeze midi into octaves determined by min_note and max_note and transposes to key = 0 => C major / A minor
             melody1.squash(
                 self._min_note,
-                self._max_note) # transpose_to_key -> not working properly!
+                self._max_note) # transpose_to_key = 0 -> not working properly!
 
             if len(melody0) > 0 and len(melody1) > 0:
                 mel_bass_silence_removed = self._remove_silence(melody0, melody1, steps_per_quarter, gap_bars=1)
@@ -89,6 +85,9 @@ class TokenizerMonophonic():
                 #     path_out_bass_test = f'/Users/nikolasborrel/github/midi_data_out/splitted/bass_split_silence_{i}.mid'
                 #     midi_io.sequence_proto_to_midi_file(mel_bass[0].to_sequence(), path_out_mel_test)
                 #     midi_io.sequence_proto_to_midi_file(mel_bass[1].to_sequence(), path_out_bass_test)
+        
+        if len(self.loading_errors) > 0:
+            print(self.loading_errors)
 
     def _remove_silence(self, monophonic_lead: Melody, monophonic_accomp: Melody, steps_per_quarter, gap_bars=1, ) -> List[Tuple[Melody, Melody]]:
 
@@ -113,13 +112,6 @@ class TokenizerMonophonic():
         note_seq_lead = monophonic_lead.to_sequence(qpm=qpm)
         note_seqs_accomp = monophonic_accomp.to_sequence(qpm=qpm)
 
-        
-        # notes_by_start_time = sorted(
-        #     list(note_seq_lead.notes), key=lambda note: note.start_time)
-
-        # split_times_lead = [0.0]
-        # last_active_time = 0.0
-
         seconds_per_step = 60.0 / qpm / monophonic_lead.steps_per_quarter
         gap_seconds = monophonic_lead.steps_per_bar*seconds_per_step * gap_bars
 
@@ -128,7 +120,7 @@ class TokenizerMonophonic():
 
         note_seqs_lead_split_tmp = []
 
-        for i, split in enumerate(note_seqs_lead_split):
+        for split in note_seqs_lead_split:
             if split.total_time < 1e-4:
                 continue
 
