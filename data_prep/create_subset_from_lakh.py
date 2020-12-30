@@ -3,7 +3,7 @@ from music_utils.notes import get_midi_pitch_to_note_names_dict
 from note_seq import midi_io
 #from note_seq.protobuf import music_pb2
 import pretty_midi as pm
-from utils.tools import read_json, Timer
+from utils.tools import read_json
 #import loaders.dataloader_midi as loader
 from note_seq.protobuf.music_pb2 import NoteSequence
 from loaders.dataloader_midi import remove_files_from_clean_midi, get_artists_midi_dict_generator, get_instruments_from_NoteSequence
@@ -16,7 +16,7 @@ import shutil
 import note_seq
 from utils.tools import write_list_as_csv_txt
 import copy
-
+import time
 #CHANGE ME
 clean_midi_dir = '/home/sarantos/Documents/Music_AI/clean_midi' #Full path of clean_midi dataset
 dest_folder = '/home/sarantos/Documents/Music_AI/clean_midi_BM/' #Full path of clean_midi SUBSET(Tracks with only bass and melody)
@@ -126,6 +126,12 @@ def rewrite_mido_MidiFile_bass_melody(cv1, folder_name, bass_program=34, melody_
                     msg.program = melody_program
                 except:
                     pass
+            for msg in cv1.tracks[i]:
+                try:
+                    msg.channel = 0
+                except:
+                    pass
+            
             continue
         
         if 'bass' in track.name.lower() and bass_counter == 0:
@@ -135,6 +141,12 @@ def rewrite_mido_MidiFile_bass_melody(cv1, folder_name, bass_program=34, melody_
             for msg in cv1.tracks[i]:
                 try:
                     msg.program = bass_program
+                except:
+                    pass
+            
+            for msg in cv1.tracks[i]:
+                try:
+                    msg.channel = 1
                 except:
                     pass
             continue
@@ -154,6 +166,9 @@ for i, midi in enumerate(tqdm(midis)):
     rewrite_mido_MidiFile_bass_melody(midi, folder_name, bass_program=34, melody_program=54,
                                       delete_rest=True)
     
+#%%
+    
+midis = read_midis_from_clean_midi_BM(folder=folder_name, read_midi=midi_io.midi_file_to_note_sequence)
 #%%
 
 """
@@ -178,6 +193,11 @@ def rewrite_mido_MidiFile_bass_melody(cv1, bass_program=34, melody_program=54, f
                     msg.program = 54
                 except:
                     pass
+            for msg in cv1.tracks[i]:
+                try:
+                    msg.channel = 0
+                except:
+                    pass
             continue
         
         if 'bass' in track.name.lower() and bass_counter == 0:
@@ -189,6 +209,11 @@ def rewrite_mido_MidiFile_bass_melody(cv1, bass_program=34, melody_program=54, f
                     msg.program = 34
                 except:
                     pass
+            for msg in cv1.tracks[i]:
+                try:
+                    msg.channel = 1
+                except:
+                    pass
             continue
         tracks_remove.append(track)
         
@@ -198,7 +223,7 @@ def rewrite_mido_MidiFile_bass_melody(cv1, bass_program=34, melody_program=54, f
 
 #%%
 import copy
-cv1 = copy.deepcopy(midis[16])
+cv1 = copy.deepcopy(midis[17])
 import mido
 
 #cv1 = MidiFile('I Feel Love.1_gmajor_3_4.mid')
@@ -230,6 +255,12 @@ for i, track in enumerate(cv1.tracks):
                 msg.program = 54
             except:
                 pass
+        
+        for msg in cv1.tracks[i]:
+            try:
+                msg.channel = 0
+            except:
+                pass
         continue
     
     if 'bass' in track.name.lower() and bass_counter == 0:
@@ -239,6 +270,12 @@ for i, track in enumerate(cv1.tracks):
         for msg in cv1.tracks[i]:
             try:
                 msg.program = 34
+            except:
+                pass
+        
+        for msg in cv1.tracks[i]:
+            try:
+                msg.channel = 1
             except:
                 pass
         continue
