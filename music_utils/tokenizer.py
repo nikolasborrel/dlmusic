@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import math
 import copy
 from music_utils.notes import midi_number_to_note
 import note_seq
@@ -78,18 +79,12 @@ class TokenizerMonophonic():
 
                 self._song_count = self._song_count + len(mel_bass_silence_removed)
                 self._songs.extend(mel_bass_silence_removed)
-
-                ### FOR TESTING ###
-                # for i, mel_bass in enumerate(mel_bass_silence_removed):
-                #     path_out_mel_test = f'/Users/nikolasborrel/github/midi_data_out/splitted/mel_split_silence_{i}.mid'
-                #     path_out_bass_test = f'/Users/nikolasborrel/github/midi_data_out/splitted/bass_split_silence_{i}.mid'
-                #     midi_io.sequence_proto_to_midi_file(mel_bass[0].to_sequence(), path_out_mel_test)
-                #     midi_io.sequence_proto_to_midi_file(mel_bass[1].to_sequence(), path_out_bass_test)
         
         if len(self.loading_errors) > 0:
+            print("Not all midi files could not be used:")
             print(self.loading_errors)
 
-    def _remove_silence(self, monophonic_lead: Melody, monophonic_accomp: Melody, steps_per_quarter, gap_bars=1, ) -> List[Tuple[Melody, Melody]]:
+    def _remove_silence(self, monophonic_lead: Melody, monophonic_accomp: Melody, steps_per_quarter, gap_bars=1) -> List[Tuple[Melody, Melody]]:
 
         """Split one lead sequence of notes of type Melody into many around gaps of silence 
             and splits accompagning music according to the lead.
@@ -111,11 +106,16 @@ class TokenizerMonophonic():
         qpm = 120
         note_seq_lead = monophonic_lead.to_sequence(qpm=qpm)
         note_seqs_accomp = monophonic_accomp.to_sequence(qpm=qpm)
+        
+        if note_seqs_accomp.total_time < note_seq_lead.total_time:
+            # truncate melody to length of accompagment
+            note_seq_lead = extract_subsequence(note_seq_lead, 0, note_seqs_accomp.total_time)
 
         seconds_per_step = 60.0 / qpm / monophonic_lead.steps_per_quarter
-        gap_seconds = monophonic_lead.steps_per_bar*seconds_per_step * gap_bars
+        bar_length_secs = monophonic_lead.steps_per_bar*seconds_per_step
+        gap_seconds = bar_length_secs * gap_bars
 
-        note_seqs_lead_split = split_note_sequence_on_silence(note_seq_lead, gap_seconds)
+        note_seqs_lead_split = split_note_sequence_on_silence(note_seq_lead, gap_seconds)        
         note_seqs_accomp_split = []
 
         note_seqs_lead_split_tmp = []
@@ -128,8 +128,6 @@ class TokenizerMonophonic():
 
             start_time = split.subsequence_info.start_time_offset
             end_time = start_time + split.total_time
-            
-            note_seqs_accomp_split.append(extract_subsequence(note_seqs_accomp, start_time, end_time))
 
         note_seqs_lead_split = note_seqs_lead_split_tmp
 
@@ -140,10 +138,26 @@ class TokenizerMonophonic():
             melody.from_quantized_sequence(quantized_sequence, gap_bars=10000000)
             return melody
 
-        melodies_lead = map(createMelodyObject, note_seqs_lead_split)
-        melodies_accomp = map(createMelodyObject, note_seqs_accomp_split)
+        def truncate_to_bars(mel_lead: Melody, mel_accomp: Melody) -> Tuple[Melody, Melody]:
+            '''
+            Truncate to last bar with notes filling the whole bar (we could also pad, but would 
+            then add silence of no value)
+            '''
+
+            num_steps_truncated = math.floor(len(mel_lead.steps) / mel_lead.steps_per_bar) * mel_lead.steps_per_bar
+            if num_steps_truncated == 0:
+                # at least one bar is needed!
+                num_steps_truncated = mel_lead.steps_per_bar
+
+            mel_lead.set_length(num_steps_truncated)
+            mel_accomp.set_length(num_steps_truncated)
+
+            return (mel_lead, mel_accomp)
+
+        melodies_lead = list(map(createMelodyObject, note_seqs_lead_split))
+        melodies_accomp = list(map(createMelodyObject, note_seqs_accomp_split))
         
-        return list(zip(melodies_lead,melodies_accomp))
+        return [truncate_to_bars(melodies_lead[i], melodies_accomp[i]) for i in range(len(melodies_lead))]
 
     @property
     def songs(self):

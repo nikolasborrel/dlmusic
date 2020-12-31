@@ -25,8 +25,6 @@ def create_dataset_from_midi(root_dir, instruments: Tuple[int,int], note_chunk=1
     
     if len(sequences) == 0:
         raise Exception(f'No midi files loaded')
-    
-    #print(sequences)
 
     print("Tokenize...")
     t = TokenizerMonophonic(min_note=60, max_note=72)
@@ -38,13 +36,11 @@ def create_dataset_from_midi(root_dir, instruments: Tuple[int,int], note_chunk=1
 
     if t.song_count == 0:
         raise Exception(f'No songs matching instruments {instruments}')
-
-    #print("Testing sequences:\n", sequences)
     
     training_set, validation_set, test_set = create_datasets(t.songs, Dataset)
 
     if print_info:
-        print(f'We have {t.song_count} sentences and {t.vocab_size} unique tokens in our dataset (including UNK).\n')
+        print(f'We have {t.song_count} sentences and {t.vocab_size} unique tokens in our dataset (including NO_EVENT = 0 and NOTE_OFF = 1).\n')
         #print('The index of \'b\' is', word_to_idx['b'])
         #print(f'The word corresponding to index 1 is \'{idx_to_word[1]}\'')
 

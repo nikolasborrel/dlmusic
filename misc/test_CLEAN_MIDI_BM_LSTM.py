@@ -180,7 +180,7 @@ from loaders.dataset import Dataset
 training_set, validation_set, test_set = create_datasets(t.songs, Dataset)
 
 
-print(f'We have {t.song_count} sentences and {t.vocab_size} unique tokens in our dataset (including UNK).\n')
+print(f'We have {t.song_count} sentences and {t.vocab_size} unique tokens in our dataset (including NO_EVENT = 0 and NOTE_OFF = 1).\n')
 #print('The index of \'b\' is', word_to_idx['b'])
 #print(f'The word corresponding to index 1 is \'{idx_to_word[1]}\'')
 

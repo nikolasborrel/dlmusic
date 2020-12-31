@@ -11,7 +11,7 @@ import torch.optim as optim
 # Set seed such that we always get the same dataset
 np.random.seed(42)
 
-path_to_midi_dir = '/Users/nikolasborrel/github/midi_data_out/experiments/'
+path_to_midi_dir = '/Users/nikolasborrel/github/midi_data_out/CLEAN_MIDI_BM_small/'
 
 #instruments_to_extract = (54, 34) # voice and bass
 instruments_to_extract = (0, 1) # voice and bass
