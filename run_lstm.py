@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../note_seq') # needed unless installing forked lib from github
+
 import numpy as np
 import matplotlib.pyplot as plt
 from models.model_lstm import MyRecurrentNet
@@ -13,18 +16,19 @@ np.random.seed(42)
 
 path_to_midi_dir = '/Users/nikolasborrel/github/midi_data_out/CLEAN_MIDI_BM_small/'
 
-#instruments_to_extract = (54, 34) # voice and bass
-instruments_to_extract = (0, 1) # voice and bass
+instruments = (0,1)
+lead_instrument   = ('melody',0)
+accomp_instrument = ('bass',1)
+
+max_bars = 16
 
 # Hyper-parameters
 num_epochs = 200
 training_set, validation_set, test_set, tokenizer \
-    = create_dataset_from_midi(path_to_midi_dir, instruments_to_extract, print_info=True)
+    = create_dataset_from_midi(path_to_midi_dir, lead_instrument, accomp_instrument, max_bars, print_info=True)
 encoder_decoder = tokenizer.encoder_decoder
 num_sequences = tokenizer.song_count
 vocab_size = tokenizer.vocab_size
-
-#training_set, validation_set, test_set, word_to_idx, idx_to_word, num_sequences, vocab_size = load_dummy_dataset(True)
 
 # Initialize a new LSTM network
 net = MyRecurrentNet(vocab_size)

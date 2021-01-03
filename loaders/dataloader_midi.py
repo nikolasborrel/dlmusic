@@ -12,30 +12,40 @@ import numpy as np
 from utils.tools import timer
 import os
 from utils.tools import get_index_string
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 import string
 import tqdm
 
 from note_seq.melodies_lib import Melody
 
-def create_dataset_from_midi(root_dir, instruments: Tuple[int,int], note_chunk=10, print_info=False, recursive=False) -> ([], [], [], TokenizerMonophonic):
+# TODO: max_bars_chunk disabled
+def create_dataset_from_midi(root_dir, name_instr_lead: Tuple[str,int], name_instr_accomp: Tuple[str,int], 
+    max_bars_chunk, print_info=False, recursive=False) -> ([], [], [], TokenizerMonophonic):
     
     print("Create...")
-    sequences = load_midi_to_seq(root_dir, recursive=False)
+    extract_names = (name_instr_lead[0], name_instr_accomp[0])
+    extract_instruments = (name_instr_lead[1], name_instr_accomp[1])
+
+    name_instrument_map = {
+        extract_names[0]:  extract_instruments[0], 
+        extract_names[1]:  extract_instruments[1]
+        }
+
+    sequences = load_midi_to_seq(root_dir, name_instrument_map, recursive=False)
     
     if len(sequences) == 0:
         raise Exception(f'No midi files loaded')
 
     print("Tokenize...")
-    t = TokenizerMonophonic(min_note=60, max_note=72)
-    t.add_songs_from_sequences(sequences, instruments)
+    t = TokenizerMonophonic(max_bars_chunk=max_bars_chunk, min_note=60, max_note=72)
+    t.add_songs(sequences, extract_instruments)
     
     # summarize what was learned
     #TODO print(t.note_counts)
     print(f'song count: {t.song_count}')
 
     if t.song_count == 0:
-        raise Exception(f'No songs matching instruments {instruments}')
+        raise Exception(f'No songs matching instruments {extract_instruments}')
     
     training_set, validation_set, test_set = create_datasets(t.songs, Dataset)
 
@@ -90,25 +100,25 @@ def create_datasets(songs: List[Tuple[Melody,Melody]], dataset_class, p_train=0.
 
     return training_set, validation_set, test_set
 
-def load_midi_to_seq(root_dir, recursive=False):
+def load_midi_to_seq(root_dir, name_instrument_map, recursive=False):
     print('Loading...')
     if recursive:
-        return convert_midi_to_note_seq(root_dir)
+        return convert_midi_to_note_seq(root_dir, name_instrument_map)
     else:
         files = midi_file_paths_in_dir(root_dir)
-        return np.array([midi_io.midi_file_to_note_sequence(f) for f in files])
+        return np.array([midi_io.midi_file_to_note_sequence(f, name_instrument_map) for f in files])
 
 
-def convert_midi_to_note_seq(root_dir):
+def convert_midi_to_note_seq(root_dir, name_instrument_map):
     files = midi_file_paths_in_dir(root_dir)
     dirs = [join(root_dir, f) for f in listdir(root_dir) if isdir(join(root_dir, f))]
 
     note_seq_arr1 = np.array([])
 
     for dir in dirs:
-        note_seq_arr1 = np.append(note_seq_arr1, convert_midi_to_note_seq(dir))
+        note_seq_arr1 = np.append(note_seq_arr1, convert_midi_to_note_seq(dir, name_instrument_map))
     
-    note_seq_arr2 = np.array([midi_io.midi_file_to_note_sequence(f) for f in files])    
+    note_seq_arr2 = np.array([midi_io.midi_file_to_note_sequence(f, name_instrument_map) for f in files])    
     return np.append(note_seq_arr1, note_seq_arr2)
 
 def midi_file_paths_in_dir(root_dir):
