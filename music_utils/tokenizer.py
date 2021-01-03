@@ -17,8 +17,8 @@ from note_seq.constants import DEFAULT_QUARTERS_PER_MINUTE
 from note_seq.protobuf.generator_pb2 import GeneratorOptions
 from note_seq.protobuf.music_pb2 import NoteSequence
 from typing import Tuple, List, Optional
-
-flatten = lambda t: [item for sublist in t for item in sublist]
+from utils.tools import flatten
+import numpy as np
 
 NO_KEY_SIGNATURE = 'no_key_signatures_found'
 MORE_THAN_ONE_KEY_SIGNATURE = 'more_than_one_key_signature_found'
@@ -32,8 +32,8 @@ class TokenizerMonophonic():
     
     # min=60 max=72 -> one octave
     def __init__(self, max_bars_chunk=32, min_note=DEFAULT_MIN_NOTE, max_note=DEFAULT_MAX_NOTE, steps_per_quarter=DEFAULT_STEPS_PER_QUARTER) -> None:
-        self._songs = []
-        self._song_count = 0
+        self._song_parts_lead = []
+        self._song_parts_accomp = []
         self._min_note = min_note
         self._max_note = max_note
         self._max_bars_chunk = max_bars_chunk
@@ -73,11 +73,17 @@ class TokenizerMonophonic():
 
         return sequences_lib.split_note_sequence(note_seq, bar_length_sec) # only works on non-quantized sequences (for some reason...)
 
-    def add_songs(self, seqs: List[NoteSequence], instruments:Tuple[int,int], ignore_polyphonic_notes=True):
+    def add_songs(self, seqs: List[NoteSequence], instruments: List[int], ignore_polyphonic_notes=True):
         '''
         sequences is a list of list of note_seq, each inner list corresponding to (part of) a song
         '''
         
+        if len(instruments) == 0:
+            raise Exception("Instruments are empty")
+
+        if len(instruments) > 2:
+            raise Exception("Currently number of instruments to extract can only be one or two")
+
         stats = {}
 
         seqs_transposed_c   = list(map(lambda ns: self._transpose(ns, 0, stats), seqs))        
@@ -94,38 +100,62 @@ class TokenizerMonophonic():
             # EXTRACT FIRST INSTRUMENT
             melody0 = Melody()
             melody0.from_quantized_sequence(
-                quantized_sequence, instrument=instruments[0], ignore_polyphonic_notes=ignore_polyphonic_notes, gap_bars=100000000)
+                quantized_sequence, instrument=instruments[0], 
+                ignore_polyphonic_notes=ignore_polyphonic_notes, gap_bars=100000000)
 
-            # squeeze midi into octaves determined by min_note and max_note and transposes to key = 0 => C major / A minor
+            # squeeze midi into octaves determined by min_note and max_note
             melody0.squash(
                 self._min_note,
                 self._max_note) # transpose_to_key = 0 -> not working properly!
 
-            # EXTRACT SECOUND INSTRUMENT
-            melody1 = Melody()
-            melody1.from_quantized_sequence(
-                quantized_sequence, instrument=instruments[1], ignore_polyphonic_notes=ignore_polyphonic_notes, gap_bars=100000000)
+            melody1 = None
+            
+            if len(instruments) == 2:
+                # EXTRACT SECOUND INSTRUMENT
+                melody1 = Melody()
+                melody1.from_quantized_sequence(
+                    quantized_sequence, instrument=instruments[1], 
+                    ignore_polyphonic_notes=ignore_polyphonic_notes, gap_bars=100000000)
 
-            # squeeze midi into octaves determined by min_note and max_note and transposes to key = 0 => C major / A minor
-            melody1.squash(
-                self._min_note,
-                self._max_note) # transpose_to_key = 0 -> not working properly!
+                # squeeze midi into octaves determined by min_note and max_note
+                melody1.squash(
+                    self._min_note,
+                    self._max_note) # transpose_to_key = 0 -> not working properly!
 
-            if len(melody0) > 0 and len(melody1) > 0:
-                silence_removed_tuple = self._remove_silence(melody0, melody1, gap_bars=1)
-                
-                if silence_removed_tuple != None:
-                    self._song_count = self._song_count + len(silence_removed_tuple)
-                    self._songs.extend(silence_removed_tuple)
+                if len(melody0) > 0 and len(melody1) > 0:
+                    lead_and_accomp = self._remove_silence_lead_accomp(melody0, melody1, gap_bars=1)
+                    
+                    if lead_and_accomp != None:
+                        self._song_parts_lead.extend(lead_and_accomp[0])
+                        self._song_parts_accomp.extend(lead_and_accomp[1])
+            
+            elif len(melody0) > 0:
+                mel_cleaned = self._remove_silence(melody0, gap_bars=1)
+                if mel_cleaned != None:
+                    self._song_parts_lead.extend(mel_cleaned)
         
         if len(self.loading_errors) > 0:
             print("Not all midi files could not be used:")
             print(self.loading_errors)
 
-    def _remove_silence(self, monophonic_lead: Melody, monophonic_accomp: Melody, gap_bars=1) -> Optional[List[Tuple[Melody, Melody]]]:
+    def to_midi(self, outputs, path_out_dir):
+        events = []
+        for output in outputs:
+            label = np.argmax(output)
+            events.append(self._encoder_decoder.class_index_to_event(label, events))
+
+        print(events)
+
+        mel_pred = note_seq.Melody(events)
+        seq_pred = mel_pred.to_sequence()
+
+        path_out = path_out_dir + 'out.mid'
+        midi_io.sequence_proto_to_midi_file(seq_pred, path_out)
+
+    def _remove_silence_lead_accomp(self, monophonic_lead: Melody, monophonic_accomp: Melody, gap_bars=1) -> Optional[Tuple[List[Melody],List[Melody]]]:
 
         """Split one lead sequence of notes of type Melody into many around gaps of silence 
-            and splits accompagning music according to the lead.
+            and splits accompanying music according to the lead.
 
         This function splits a NoteSequence into multiple NoteSequences, each of which
         contains no gaps of silence longer than `gap_seconds`. Each of the resulting
@@ -133,7 +163,7 @@ class TokenizerMonophonic():
 
         Args:
             monophonic_lead: The lead Melody to split.
-            monophonic_accomp: The accompagning Melody to split accordingly.
+            monophonic_accomp: The accompanying Melody to split accordingly.
             gap_bars: The maximum amount of contiguous silence to allow within a
                 NoteSequence, in num bars.
 
@@ -172,30 +202,25 @@ class TokenizerMonophonic():
             return None
 
         note_seqs_lead_split = note_seqs_lead_split_tmp
+
+        if len(note_seqs_lead_split) != len(note_seqs_accomp_split):
+            raise Exception("Note sequences have different lenghts")
+            
+        melodies_lead_padded = []
+        melodies_accomp_padded = []
         
-        def createMelodyObject(sequence: NoteSequence) -> Melody:
-            melody = Melody()
-            quantized_sequence = sequences_lib.quantize_note_sequence(
-                sequence, steps_per_quarter=self._steps_per_quarter)
-            melody.from_quantized_sequence(quantized_sequence, gap_bars=10000000)
-            return melody
-
-        def bar_padding(mel_lead: Melody, mel_accomp: Melody) -> Tuple[Melody, Melody]:
-            '''
-            Truncate to last bar with notes filling the whole bar (we could also pad, but would 
-            then add silence of no value)
-            '''
-
+        for i in range(len(note_seqs_lead_split)):
+            mel_lead = self._createMelodyObject(note_seqs_lead_split[i])
+            mel_accomp = self._createMelodyObject(note_seqs_accomp_split[i])
+            
             num_steps_truncated = math.ceil(len(mel_lead.steps) / mel_lead.steps_per_bar) * mel_lead.steps_per_bar
             mel_lead.set_length(num_steps_truncated)
             mel_accomp.set_length(num_steps_truncated)
 
-            return (mel_lead, mel_accomp)
-
-        melodies_lead = list(map(createMelodyObject, note_seqs_lead_split))
-        melodies_accomp = list(map(createMelodyObject, note_seqs_accomp_split))
-
-        return [bar_padding(melodies_lead[i], melodies_accomp[i]) for i in range(len(melodies_lead))]
+            melodies_lead_padded.append(mel_lead)
+            melodies_accomp_padded.append(mel_accomp)
+            
+        return (melodies_lead_padded, melodies_accomp_padded)
 
     def _transpose(self, note_seq, to_key, stats, 
             min_pitch=constants.MIN_MIDI_PITCH, max_pitch=constants.MAX_MIDI_PITCH) -> NoteSequence:
@@ -219,9 +244,75 @@ class TokenizerMonophonic():
         
         return sequences_lib.transpose_note_sequence(note_seq, amount, min_allowed_pitch=min_pitch, max_allowed_pitch=max_pitch)[0]
 
+    def _remove_silence(self, monophonic_mel: Melody, gap_bars=1) -> Optional[List[Melody]]:
+
+        """Split one lead sequence of notes of type Melody into many around gaps of silence
+
+        Args:
+            monophonic_mel: The Melody to split.
+            gap_bars: The maximum amount of contiguous silence to allow within a
+                NoteSequence, in num bars.
+
+        Returns:
+            A Python list of Melodys.
+        """
+        
+        qpm = 120
+        note_seq_lead = monophonic_mel.to_sequence(qpm=qpm)        
+
+        bar_length_secs = calc_bar_length(qpm, monophonic_mel.steps_per_quarter, monophonic_mel.steps_per_bar)
+        gap_seconds = bar_length_secs * gap_bars
+        
+        note_seqs_lead_split = split_note_sequence_on_silence(note_seq_lead, gap_seconds)        
+        note_seqs_lead_split_tmp = []
+
+        for split in note_seqs_lead_split:
+            if split.total_time > bar_length_secs: # we ignore splits smaller than 1 bar
+                note_seqs_lead_split_tmp.append(split)
+
+        if len(note_seqs_lead_split_tmp) == 0:
+            return None
+
+        note_seqs_lead_split = note_seqs_lead_split_tmp
+
+        return list(map(self._createMelodyObject, note_seqs_lead_split))
+
+    def _transpose(self, note_seq, to_key, stats, 
+            min_pitch=constants.MIN_MIDI_PITCH, max_pitch=constants.MAX_MIDI_PITCH) -> NoteSequence:
+        """Transposes a note sequence by the specified amount."""
+
+        def update_stats(key):                 
+            if key in stats:
+                stats[key] += 1
+            else:
+                stats[key] = 1            
+
+        note_seq_key = 0 # C major
+
+        if len(note_seq.key_signatures) == 0:            
+            update_stats(NO_KEY_SIGNATURE)        
+        elif len(note_seq.key_signatures) > 1:
+            note_seq_key = note_seq.key_signatures[0].key
+            update_stats(MORE_THAN_ONE_KEY_SIGNATURE)
+        
+        amount = to_key - note_seq_key
+        
+        return sequences_lib.transpose_note_sequence(note_seq, amount, min_allowed_pitch=min_pitch, max_allowed_pitch=max_pitch)[0]
+
+    def _createMelodyObject(self, sequence: NoteSequence, pad_end=False) -> Melody:
+        melody = Melody()
+        quantized_sequence = sequences_lib.quantize_note_sequence(
+            sequence, steps_per_quarter=self._steps_per_quarter)
+        melody.from_quantized_sequence(quantized_sequence, pad_end=pad_end, gap_bars=10000000)
+        return melody
+
     @property
-    def songs(self):
-        return self._songs
+    def song_parts_lead(self):
+        return self._song_parts_lead
+
+    @property
+    def song_parts_accomp(self):
+        return self._song_parts_accomp
 
     # The encoder/decoder for a monophonic sequence
     @property
@@ -231,7 +322,7 @@ class TokenizerMonophonic():
     # An integer count of the total number of documents that were used to fit the Tokenizer.
     @property
     def song_count(self):
-        return self._song_count
+        return len(self._song_parts_lead)
 
     @property
     def vocab_size(self):

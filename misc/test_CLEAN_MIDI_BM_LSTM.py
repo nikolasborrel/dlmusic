@@ -176,8 +176,8 @@ if t.song_count == 0:
 from loaders.dataloader_midi import create_datasets
 from loaders.dataset import Dataset
 
-
-training_set, validation_set, test_set = create_datasets(t.songs, Dataset)
+songs = list(zip(t.song_parts_lead, t.song_parts_accomp))
+training_set, validation_set, test_set = create_datasets(songs, Dataset)
 
 
 print(f'We have {t.song_count} sentences and {t.vocab_size} unique tokens in our dataset (including NO_EVENT = 0 and NOTE_OFF = 1).\n')

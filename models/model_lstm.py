@@ -14,14 +14,14 @@ class MyRecurrentNet(nn.Module):
         # Recurrent layer
         # YOUR CODE HERE!
         self.lstm = nn.LSTM(input_size=vocab_size,
-                         hidden_size=50,
-                         num_layers=1,
-                         bidirectional=False)
+                            hidden_size=50,
+                            num_layers=1,
+                            bidirectional=False)
         
         # Output layer
         self.l_out = nn.Linear(in_features=50,
-                            out_features=vocab_size,
-                            bias=False)
+                               out_features=vocab_size,
+                               bias=False)
         
     def forward(self, x):
         # RNN returns output and last hidden state

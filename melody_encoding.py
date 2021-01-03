@@ -8,12 +8,12 @@ from note_seq.constants import DEFAULT_QUARTERS_PER_MINUTE
 from note_seq.protobuf.generator_pb2 import GeneratorOptions
 from note_seq.protobuf.music_pb2 import NoteSequence
 
-input_file1 = '/Users/nikolasborrel/github/midi_data_out/melodies/mel1.mid'
-input_file2 = '/Users/nikolasborrel/github/midi_data_out/melodies/mel2.mid'
-out_file1 = '/Users/nikolasborrel/github/midi_data_out/melodies/mel1_out.mid'
-out_file2 = '/Users/nikolasborrel/github/midi_data_out/melodies/mel2_out.mid'
-out_file1_trans = '/Users/nikolasborrel/github/midi_data_out/melodies/mel1_trans_out.mid'
-out_file1_pred = '/Users/nikolasborrel/github/midi_data_out/melodies/mel1_pred_out.mid'
+input_file1 = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/melodies/mel1.mid'
+input_file2 = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/melodies/mel2.mid'
+out_file1 = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/melodies/mel1_out.mid'
+out_file2 = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/melodies/mel2_out.mid'
+out_file1_trans = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/melodies/mel1_trans_out.mid'
+out_file1_pred = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/melodies/mel1_pred_out.mid'
 
 # FOR IDEAS OF USING THE OUTPUT (hot encodings) DATA FROM THIS, SEE EVENTUALLY magenta.models.shared.eventss_rnn_model.py
 
@@ -41,7 +41,7 @@ inputs, labels = mel_encoder.encode(melody1)
 print(inputs)
 print(labels)
 
-# OR, if using batches (NOT SURE HOW TO USE / IF NEEDED - no labels? See magenta.models.shared.eventss_rnn_model.py)
+# OR, if using batches (NOT SURE HOW TO USE / IF NEEDED - no labels? See magenta.models.shared.events_rnn_model.py)
 melody2 = melodies_lib.midi_file_to_melody(input_file2)
 melody2.squash(
     min_note,

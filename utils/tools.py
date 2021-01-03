@@ -255,3 +255,6 @@ def pad_sequences(sequences: [[]], maxlen) -> [[]]:
             seqs_padded[i,:] = sequences[0:maxlen-1]
 
     return seqs_padded
+
+def flatten(t): 
+    return [item for sublist in t for item in sublist]

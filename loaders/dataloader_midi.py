@@ -22,7 +22,7 @@ def create_dataset_from_midi(root_dir, name_instr_lead: Tuple[str,int], name_ins
     
     print("Create...")
     extract_names = (name_instr_lead[0], name_instr_accomp[0])
-    extract_instruments = (name_instr_lead[1], name_instr_accomp[1])
+    extract_instruments = [name_instr_lead[1], name_instr_accomp[1]]
 
     name_instrument_map = {
         extract_names[0]:  extract_instruments[0], 
@@ -39,24 +39,46 @@ def create_dataset_from_midi(root_dir, name_instr_lead: Tuple[str,int], name_ins
     t.add_songs(sequences, extract_instruments)
     
     # summarize what was learned
-    #TODO print(t.note_counts)
     print(f'song count: {t.song_count}')
 
     if t.song_count == 0:
         raise Exception(f'No songs matching instruments {extract_instruments}')
     
-    training_set, validation_set, test_set = create_datasets(t.songs, Dataset)
+    songs = list(zip(t.song_parts_lead, t.song_parts_accomp))
+    
+    training_set, validation_set, test_set = create_datasets(songs, Dataset)
 
     if print_info:
         print(f'We have {t.song_count} sentences and {t.vocab_size} unique tokens in our dataset (including NO_EVENT = 0 and NOTE_OFF = 1).\n')
-        #print('The index of \'b\' is', word_to_idx['b'])
-        #print(f'The word corresponding to index 1 is \'{idx_to_word[1]}\'')
-
         print(f'We have {len(training_set)} samples in the training set.')
         print(f'We have {len(validation_set)} samples in the validation set.')
         print(f'We have {len(test_set)} samples in the test set.')
 
     return training_set, validation_set, test_set, t
+
+def encode_from_midi(root_dir, name_instr: Tuple[str,int], 
+    max_bars_chunk, print_info=False, recursive=False) -> ([], [], [], TokenizerMonophonic):
+    
+    print("Create...")
+    extract_instruments = [name_instr[1]]
+    name_instrument_map = { name_instr[0]:  name_instr[1] }
+
+    sequences = load_midi_to_seq(root_dir, name_instrument_map, recursive=False)
+    
+    if len(sequences) == 0:
+        raise Exception(f'No midi files loaded')
+
+    print("Tokenize...")
+    t = TokenizerMonophonic(max_bars_chunk=max_bars_chunk, min_note=60, max_note=72)
+    t.add_songs(sequences, extract_instruments)
+    
+    # summarize what was learned
+    print(f'song count: {t.song_count}')
+
+    if t.song_count == 0:
+        raise Exception(f'No songs matching instruments {extract_instruments}')
+    
+    return t
 
 def create_datasets(songs: List[Tuple[Melody,Melody]], dataset_class, p_train=0.8, p_val=0.1, p_test=0.1) -> ([], [], []):
     print("create data set...")
