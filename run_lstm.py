@@ -3,7 +3,7 @@ sys.path.append('../note_seq') # needed unless installing forked lib from github
 
 import numpy as np
 import matplotlib.pyplot as plt
-from models.model_lstm import MyRecurrentNet
+from models.model_lstm import MusicLSTMNet
 from loaders.dataloader_midi import create_dataset_from_midi
 from training.train_lstm import train_lstm
 import torch
@@ -30,10 +30,10 @@ num_sequences = tokenizer.song_count
 vocab_size = tokenizer.vocab_size
 
 # Initialize a new LSTM network
-net = MyRecurrentNet(vocab_size)
+net = MusicLSTMNet(vocab_size)
 training_loss, validation_loss = train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encoder_decoder)
 
-torch.save(net, paths.model_serialized_dir + 'simple.pt')
+torch.save(net, paths.model_serialized_dir + 'music_lstm.pt')
 
 # Plot training and validation loss
 epoch = np.arange(len(training_loss))

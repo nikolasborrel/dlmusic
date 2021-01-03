@@ -7,9 +7,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-class MyRecurrentNet(nn.Module):
+class SimpleLSTMNet(nn.Module):
     def __init__(self, vocab_size):
-        super(MyRecurrentNet, self).__init__()
+        super(SimpleLSTMNet, self).__init__()
         
         # Recurrent layer
         # YOUR CODE HERE!
@@ -32,5 +32,50 @@ class MyRecurrentNet(nn.Module):
         
         # Output layer
         x = self.l_out(x)
+        
+        return x
+
+class MusicLSTMNet(nn.Module):
+    def __init__(self, vocab_size):
+        super(MusicLSTMNet, self).__init__()
+        
+        # Recurrent layer
+        self.lstm1 = nn.LSTM(input_size=vocab_size,
+                             hidden_size=256,
+                             num_layers=3,
+                             bidirectional=False)
+
+        self.drop1 = nn.Dropout(0.3)
+
+        self.lstm2 = nn.LSTM(input_size=256,
+                             hidden_size=128,
+                             num_layers=3,
+                             bidirectional=False)
+        
+        self.drop2 = nn.Dropout(0.3)
+
+        
+        # Output layer
+        self.l_out = nn.Linear(in_features=128,
+                               out_features=vocab_size,
+                               bias=False)
+        
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        # RNN returns output and last hidden state
+        x, (h, c) = self.lstm1(x)        
+        x = self.drop1(x)
+        
+        x, (h, c) = self.lstm2(x)
+        x = self.drop2(x)
+
+        # Flatten output for feed-forward layer
+        x = x.view(-1, self.lstm2.hidden_size)
+
+        # Output layer
+        x = self.l_out(x)
+
+        #x = self.softmax(x)
         
         return x

@@ -15,7 +15,7 @@ import torch.optim as optim
 import utils.paths as paths
 from utils.tools import flatten
 
-path_to_model = paths.model_serialized_dir + 'simple.pt'
+path_to_model = paths.model_serialized_dir + 'music_lstm.pt'
 
 path_input_melody  = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/mel_input/'
 path_output_melody = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/learned/'

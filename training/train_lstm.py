@@ -30,7 +30,8 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
             inputs_one_hot, _ = encoder_decoder.encode(input_and_target[0])  # MELODY
             _, targets_idx = encoder_decoder.encode(input_and_target[1])     # BASS
             
-            # NBJ comment: 3 dimensional array needed (outer most of size 1). Not sure why pyTorch needs this structure
+            # NBJ comment: 3 dimensional array needed with dimension (batch_size, seq_len, input_size)
+            # TODO: batch size of one currently!
             inputs_one_hot_3D = [inputs_one_hot]
 
             # Convert input to tensor            
@@ -61,7 +62,8 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
             inputs_one_hot, _ = encoder_decoder.encode(input_and_target[0])
             _, targets_idx = encoder_decoder.encode(input_and_target[1])
             
-            # NBJ comment: 3 dimensional array needed (outer most of size 1). Not sure why pyTorch needs this structure
+            # NBJ comment: 3 dimensional array needed with dimension (batch_size, seq_len, input_size)
+            # TODO: batch size of one currently!
             inputs_one_hot_3D = [inputs_one_hot]
 
             # Convert input to tensor
