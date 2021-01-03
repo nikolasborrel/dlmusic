@@ -6,8 +6,8 @@ import pretty_midi as pm
 from utils.tools import read_json
 #import loaders.dataloader_midi as loader
 from note_seq.protobuf.music_pb2 import NoteSequence
-from loaders.dataloader_midi import remove_files_from_clean_midi, get_artists_midi_dict_generator, get_instruments_from_NoteSequence
-from loaders.dataloader_midi import read_midis_from_clean_midi_BM
+from data_prep.midi_cleaner import remove_files_from_clean_midi, get_artists_midi_dict_generator, get_instruments_from_NoteSequence
+from data_prep.midi_cleaner import read_midis_from_clean_midi_BM
 # https://github.com/magenta/magenta/blob/master/magenta/pipelines/note_sequence_pipelines_test.py
 import matplotlib.pyplot as plt
 from tqdm import tqdm

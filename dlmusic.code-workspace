@@ -4,7 +4,7 @@
 			"path": "."
 		},
 		{
-			"path": "../note_seq"
+			"path": "../note_seq/note_seq"
 		}
 	],
 	"settings": {},
@@ -19,7 +19,7 @@
 				"console": "integratedTerminal",
 				"justMyCode": false,
 				"env": {
-					"PYTHONPATH":"${PYTHONPATH}:../note_seq/note_seq"
+					"PYTHONPATH":"${PYTHONPATH}:../note_seq"
 				}				
 			}
 		]

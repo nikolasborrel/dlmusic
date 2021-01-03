@@ -2,8 +2,8 @@
 # - https://machinelearningmastery.com/prepare-text-data-deep-learning-keras/
 # - https://www.kdnuggets.com/2020/03/tensorflow-keras-tokenization-text-data-prep.html
 import sys
-
 sys.path.append('../note_seq') # needed unless installing forked lib from github
+
 from note_seq import midi_io
 from music_utils.tokenizer import TokenizerMonophonic
 from loaders.dataloader_midi import load_midi_to_seq
@@ -29,7 +29,7 @@ if len(sequences) == 0:
     raise Exception(f'No midi files loaded')
 
 print("Tokenize...")
-t = TokenizerMonophonic(min_note=60, max_note=72)
+t = TokenizerMonophonic(max_bars_chunk=8, min_note=60, max_note=72)
 t.add_songs(sequences, instruments)
 
 print("write to disk...")

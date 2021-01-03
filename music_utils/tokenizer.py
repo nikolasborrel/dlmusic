@@ -3,6 +3,7 @@ import math
 import copy
 from music_utils.notes import midi_number_to_note
 import note_seq
+from note_seq import events_lib
 from note_seq import constants
 from note_seq import melodies_lib
 from note_seq import sequences_lib
@@ -27,29 +28,52 @@ class TokenizerMonophonic():
 
     DEFAULT_MIN_NOTE = 48
     DEFAULT_MAX_NOTE = 84
-
-    # TODO: max_bars_chunk disabled
+    DEFAULT_STEPS_PER_QUARTER = 4
     
     # min=60 max=72 -> one octave
-    def __init__(self, max_bars_chunk=32, min_note=DEFAULT_MIN_NOTE, max_note=DEFAULT_MAX_NOTE) -> None:
-        # self._note_counts = OrderedDict()
-        # self._note_pieces = {}
-        # self._note_index = {}
-        # self._index_note = {}
+    def __init__(self, max_bars_chunk=32, min_note=DEFAULT_MIN_NOTE, max_note=DEFAULT_MAX_NOTE, steps_per_quarter=DEFAULT_STEPS_PER_QUARTER) -> None:
         self._songs = []
         self._song_count = 0
         self._min_note = min_note
         self._max_note = max_note
         self._max_bars_chunk = max_bars_chunk
+        self._steps_per_quarter = steps_per_quarter
 
         self._encoder_decoder = encoder_decoder.OneHotEventSequenceEncoderDecoder(
-            melody_encoder_decoder.MelodyOneHotEncoding(min_note, max_note))  # min_note=DEFAULT_MIN_NOTE, max_note=DEFAULT_MAX_NOTE
+            melody_encoder_decoder.MelodyOneHotEncoding(min_note, max_note))
 
         # Additional labels are NO_EVENT = 0 and NOTE_OFF = 1
         assert(self._encoder_decoder.input_size, max_note - min_note + 2)
         assert(self._encoder_decoder.num_classes, max_note - min_note + 2)
 
-    def add_songs(self, seqs: List[NoteSequence], instruments:Tuple[int,int], steps_per_quarter=4, ignore_polyphonic_notes=True):
+    def _split_on_bars(self, note_seq):
+
+        def calc_steps_per_bar():       
+            quantized_sequence = sequences_lib.quantize_note_sequence(
+                note_seq, steps_per_quarter=self._steps_per_quarter)
+
+            steps_per_bar_float = sequences_lib.steps_per_bar_in_quantized_sequence(
+                quantized_sequence)
+
+            if steps_per_bar_float % 1 != 0:
+                raise events_lib.NonIntegerStepsPerBarError(
+                    'There are %f timesteps per bar. Time signature: %d/%d' %
+                    (steps_per_bar_float, quantized_sequence.time_signatures[0].numerator,
+                    quantized_sequence.time_signatures[0].denominator))
+            
+            return int(steps_per_bar_float)
+
+        if len(note_seq.tempos) != 1:
+            raise Exception(f'Only one tempo indication should be present: {len(note_seq.tempos)} found')
+
+        qpm = note_seq.tempos[0].qpm
+
+        steps_per_bar = calc_steps_per_bar()
+        bar_length_sec = calc_bar_length(qpm, self._steps_per_quarter, steps_per_bar) * self._max_bars_chunk
+
+        return sequences_lib.split_note_sequence(note_seq, bar_length_sec) # only works on non-quantized sequences (for some reason...)
+
+    def add_songs(self, seqs: List[NoteSequence], instruments:Tuple[int,int], ignore_polyphonic_notes=True):
         '''
         sequences is a list of list of note_seq, each inner list corresponding to (part of) a song
         '''
@@ -57,14 +81,15 @@ class TokenizerMonophonic():
         stats = {}
 
         seqs_transposed_c   = list(map(lambda ns: self._transpose(ns, 0, stats), seqs))        
-        seqs_preprocessed = flatten(list(map(sequences_lib.split_note_sequence_on_time_changes, seqs_transposed_c)))
-        
+        seqs_time_change_split = flatten(list(map(sequences_lib.split_note_sequence_on_time_changes, seqs_transposed_c)))        
+        seqs_preprocessed = flatten(list(map(self._split_on_bars, seqs_time_change_split)))
+
         print(stats)
 
         self.loading_errors = []
-        for seq in seqs_preprocessed:        
+        for seq in seqs_preprocessed:                        
             quantized_sequence = sequences_lib.quantize_note_sequence(
-                seq, steps_per_quarter=steps_per_quarter)
+                seq, steps_per_quarter=self._steps_per_quarter)
 
             # EXTRACT FIRST INSTRUMENT
             melody0 = Melody()
@@ -87,8 +112,8 @@ class TokenizerMonophonic():
                 self._max_note) # transpose_to_key = 0 -> not working properly!
 
             if len(melody0) > 0 and len(melody1) > 0:
-                silence_removed_tuple = self._remove_silence(melody0, melody1, steps_per_quarter, gap_bars=1)                
-
+                silence_removed_tuple = self._remove_silence(melody0, melody1, gap_bars=1)
+                
                 if silence_removed_tuple != None:
                     self._song_count = self._song_count + len(silence_removed_tuple)
                     self._songs.extend(silence_removed_tuple)
@@ -97,7 +122,7 @@ class TokenizerMonophonic():
             print("Not all midi files could not be used:")
             print(self.loading_errors)
 
-    def _remove_silence(self, monophonic_lead: Melody, monophonic_accomp: Melody, steps_per_quarter, gap_bars=1) -> Optional[List[Tuple[Melody, Melody]]]:
+    def _remove_silence(self, monophonic_lead: Melody, monophonic_accomp: Melody, gap_bars=1) -> Optional[List[Tuple[Melody, Melody]]]:
 
         """Split one lead sequence of notes of type Melody into many around gaps of silence 
             and splits accompagning music according to the lead.
@@ -124,12 +149,9 @@ class TokenizerMonophonic():
             # truncate melody to length of accompagment
             note_seq_lead = extract_subsequence(note_seq_lead, 0, note_seq_accomp.total_time)
 
-        seconds_per_step = 60.0 / qpm / monophonic_lead.steps_per_quarter
-        bar_length_secs = monophonic_lead.steps_per_bar*seconds_per_step
+        bar_length_secs = calc_bar_length(qpm, monophonic_lead.steps_per_quarter, monophonic_lead.steps_per_bar)
         gap_seconds = bar_length_secs * gap_bars
-
-        #note_seqs_lead = sequences_lib.split_note_sequence(note_seq_lead, self._max_bars_chunk)
-        #note_seqs_lead_split = flatten(list(map(lambda ns: split_note_sequence_on_silence(ns, gap_seconds), note_seqs_lead)))
+        
         note_seqs_lead_split = split_note_sequence_on_silence(note_seq_lead, gap_seconds)
         
         note_seqs_accomp_split = []
@@ -150,25 +172,21 @@ class TokenizerMonophonic():
             return None
 
         note_seqs_lead_split = note_seqs_lead_split_tmp
-
+        
         def createMelodyObject(sequence: NoteSequence) -> Melody:
             melody = Melody()
             quantized_sequence = sequences_lib.quantize_note_sequence(
-                sequence, steps_per_quarter=steps_per_quarter)
+                sequence, steps_per_quarter=self._steps_per_quarter)
             melody.from_quantized_sequence(quantized_sequence, gap_bars=10000000)
             return melody
 
-        def truncate_to_bars(mel_lead: Melody, mel_accomp: Melody) -> Tuple[Melody, Melody]:
+        def bar_padding(mel_lead: Melody, mel_accomp: Melody) -> Tuple[Melody, Melody]:
             '''
             Truncate to last bar with notes filling the whole bar (we could also pad, but would 
             then add silence of no value)
             '''
 
-            num_steps_truncated = math.floor(len(mel_lead.steps) / mel_lead.steps_per_bar) * mel_lead.steps_per_bar
-            if num_steps_truncated == 0:
-                # at least one bar is needed!
-                num_steps_truncated = mel_lead.steps_per_bar
-
+            num_steps_truncated = math.ceil(len(mel_lead.steps) / mel_lead.steps_per_bar) * mel_lead.steps_per_bar
             mel_lead.set_length(num_steps_truncated)
             mel_accomp.set_length(num_steps_truncated)
 
@@ -176,11 +194,8 @@ class TokenizerMonophonic():
 
         melodies_lead = list(map(createMelodyObject, note_seqs_lead_split))
         melodies_accomp = list(map(createMelodyObject, note_seqs_accomp_split))
-        
-        if len(melodies_lead) != len(melodies_accomp):
-            stop = True
 
-        return [truncate_to_bars(melodies_lead[i], melodies_accomp[i]) for i in range(len(melodies_lead))]
+        return [bar_padding(melodies_lead[i], melodies_accomp[i]) for i in range(len(melodies_lead))]
 
     def _transpose(self, note_seq, to_key, stats, 
             min_pitch=constants.MIN_MIDI_PITCH, max_pitch=constants.MAX_MIDI_PITCH) -> NoteSequence:
@@ -213,25 +228,6 @@ class TokenizerMonophonic():
     def encoder_decoder(self):
         return self._encoder_decoder
 
-    # # A (ordered) dictionary of words and their counts.
-    # @property
-    # def note_counts(self):
-    #     return self._note_counts
-
-    # # A dictionary of words and how many documents each appeared in.
-    # @property
-    # def note_pieces(self):
-    #     return self._note_pieces
-
-    # # A dictionary of notes and their uniquely assigned integers.
-    # @property
-    # def note_index(self):
-    #     return self._note_index
-
-    # @property
-    # def index_note(self):
-    #     return self._index_note
-
     # An integer count of the total number of documents that were used to fit the Tokenizer.
     @property
     def song_count(self):
@@ -240,3 +236,14 @@ class TokenizerMonophonic():
     @property
     def vocab_size(self):
         return self._encoder_decoder.num_classes
+
+def calc_bar_length(qpm, steps_per_quarter, steps_per_bar):
+    '''
+    qpm: quarter per minute
+    
+    divide 60 sec by qpm to get quarter notes per sec; divide by steps per quarter to get time per step
+
+    returns: the bar length in seconds
+    '''
+    seconds_per_step = 60.0 / qpm / steps_per_quarter
+    return steps_per_bar*seconds_per_step
