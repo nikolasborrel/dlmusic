@@ -1,6 +1,8 @@
 import math
 import note_seq
 from music_utils.tokenizer import TokenizerMonophonic
+from torch.utils.data import DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
 from loaders.dataset import Dataset
 from utils.tools import split_list
 from note_seq import midi_io
@@ -14,11 +16,15 @@ from utils.tools import get_index_string
 from typing import List, Tuple, Dict
 import string
 import tqdm
-
+from torch.utils.data import DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
 from note_seq.melodies_lib import Melody
 
+# https://pytorch.org/docs/stable/data.html
+# https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
+
 def create_dataset_from_midi(root_dir, name_instr_lead: Tuple[str,int], name_instr_accomp: Tuple[str,int], 
-    max_bars_chunk, print_info=False, recursive=False) -> ([], [], [], TokenizerMonophonic):
+    split_in_bar_chunks, print_info=False, recursive=False) -> (DataLoader, DataLoader, DataLoader, TokenizerMonophonic):
     
     print("Create...")
     extract_names = (name_instr_lead[0], name_instr_accomp[0])
@@ -35,7 +41,7 @@ def create_dataset_from_midi(root_dir, name_instr_lead: Tuple[str,int], name_ins
         raise Exception(f'No midi files loaded')
 
     print("Tokenize...")
-    t = TokenizerMonophonic(max_bars_chunk=max_bars_chunk, min_note=60, max_note=72)
+    t = TokenizerMonophonic(split_in_bar_chunks=split_in_bar_chunks, min_note=60, max_note=72)
     t.add_songs(sequences, extract_instruments)
     
     # summarize what was learned
@@ -44,9 +50,7 @@ def create_dataset_from_midi(root_dir, name_instr_lead: Tuple[str,int], name_ins
     if t.song_count == 0:
         raise Exception(f'No songs matching instruments {extract_instruments}')
     
-    songs = list(zip(t.song_parts_lead, t.song_parts_accomp))
-    
-    training_set, validation_set, test_set = create_datasets(songs, Dataset)
+    training_set, validation_set, test_set = create_datasets(t, Dataset)
 
     if print_info:
         print(f'We have {t.song_count} sentences and {t.vocab_size} unique tokens in our dataset (including NO_EVENT = 0 and NOTE_OFF = 1).\n')
@@ -80,8 +84,12 @@ def encode_from_midi(root_dir, name_instr: Tuple[str,int],
     
     return t
 
-def create_datasets(songs: List[Tuple[Melody,Melody]], dataset_class, p_train=0.8, p_val=0.1, p_test=0.1) -> ([], [], []):
+def create_datasets(t: TokenizerMonophonic, dataset_class, p_train=0.8, p_val=0.1, p_test=0.1) -> (DataLoader, DataLoader, DataLoader):
     print("create data set...")
+    songs = list(zip(t.song_parts_lead, t.song_parts_accomp))
+
+    batch_size = 16
+    eval_batch_size = 16
 
     # Define partition sizes
     num_train = int(len(songs)*p_train)
@@ -111,14 +119,19 @@ def create_datasets(songs: List[Tuple[Melody,Melody]], dataset_class, p_train=0.
     inputs_test, targets_test = get_inputs_targets_from_songs(songs_test)
 
     # Create datasets
-    training_set = dataset_class(inputs_train, targets_train)
-    validation_set = dataset_class(inputs_val, targets_val)
-    test_set = dataset_class(inputs_test, targets_test)
+    training_set = dataset_class(inputs_train, targets_train, t.encoder_decoder)
+    validation_set = dataset_class(inputs_val, targets_val, t.encoder_decoder)
+    test_set = dataset_class(inputs_test, targets_test, t.encoder_decoder)
 
     if len(training_set) == 0 or len(validation_set) == 0 or len(test_set) == 0:
         raise Exception('Dataset too small to partition into training, validation and test set')
+    
+    # The loaders perform the actual work
+    train_loader = DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=0)
+    validation_loader = DataLoader(validation_set, batch_size=eval_batch_size, shuffle=True, num_workers=0)
+    test_loader  = DataLoader(test_set, batch_size=eval_batch_size, shuffle=True, num_workers=0)
 
-    return training_set, validation_set, test_set
+    return train_loader, validation_loader, test_loader
 
 def load_midi_to_seq(root_dir, name_instrument_map, recursive=False):
     print('Loading...')

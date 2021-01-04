@@ -19,12 +19,12 @@ instruments = [0,1]
 lead_instrument   = ('melody',instruments[0])
 accomp_instrument = ('bass',instruments[1])
 
-max_bars = 16
+split_in_bar_chunks = 8
 
 # Hyper-parameters
 num_epochs = 100
 training_set, validation_set, test_set, tokenizer \
-    = create_dataset_from_midi(paths.midi_dir, lead_instrument, accomp_instrument, max_bars, print_info=True)
+    = create_dataset_from_midi(paths.midi_dir, lead_instrument, accomp_instrument, split_in_bar_chunks, print_info=True)
 encoder_decoder = tokenizer.encoder_decoder
 num_sequences = tokenizer.song_count
 vocab_size = tokenizer.vocab_size

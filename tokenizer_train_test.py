@@ -29,7 +29,7 @@ if len(sequences) == 0:
     raise Exception(f'No midi files loaded')
 
 print("Tokenize...")
-t = TokenizerMonophonic(max_bars_chunk=8, min_note=60, max_note=72)
+t = TokenizerMonophonic(split_in_bar_chunks=8, min_note=60, max_note=72)
 t.add_songs(sequences, instruments)
 
 print("write to disk...")

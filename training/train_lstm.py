@@ -23,26 +23,26 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
         net.eval()
             
         # For each sentence in validation set
-        for input_and_target in validation_set:
+        for inputs_one_hot, targets_idx in validation_set:
             optimizer.zero_grad()
 
-            # One-hot encode input and target sequence
-            inputs_one_hot, _ = encoder_decoder.encode(input_and_target[0])  # MELODY
-            _, targets_idx = encoder_decoder.encode(input_and_target[1])     # BASS
+            # # One-hot encode input and target sequence
+            # inputs_one_hot, _ = encoder_decoder.get_inputs_batch(input_and_target[0])  # MELODY
+            # _, targets_idx = encoder_decoder.encode(input_and_target[1])               # BASS
             
-            # NBJ comment: 3 dimensional array needed with dimension (batch_size, seq_len, input_size)
-            # TODO: batch size of one currently!
-            inputs_one_hot_3D = [inputs_one_hot]
+            # # NBJ comment: 3 dimensional array needed with dimension (batch_size, seq_len, input_size)
+            # # TODO: batch size of one currently!
+            # inputs_one_hot_3D = [inputs_one_hot]
 
-            # Convert input to tensor            
-            inputs_one_hot_3D = torch.Tensor(inputs_one_hot_3D) # permute not needed
+            # # Convert input to tensor            
+            # inputs_one_hot_3D = torch.Tensor(inputs_one_hot_3D) # permute not needed
             
-            # Convert target to tensor
-            targets_idx = torch.LongTensor(targets_idx)
+            # # Convert target to tensor
+            # targets_idx = torch.LongTensor(targets_idx)
             
             # Forward pass
             # YOUR CODE HERE!
-            outputs = net.forward(inputs_one_hot_3D)
+            outputs = net.forward(inputs_one_hot)
             
             # Compute loss
             # YOUR CODE HERE!
@@ -55,26 +55,26 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
         net.train()
         
         # For each sentence in training set
-        for input_and_target in training_set:
+        for inputs_one_hot, targets_idx in training_set:
             optimizer.zero_grad()
 
-            # One-hot encode input and target sequence
-            inputs_one_hot, _ = encoder_decoder.encode(input_and_target[0])
-            _, targets_idx = encoder_decoder.encode(input_and_target[1])
+            # # One-hot encode input and target sequence
+            # inputs_one_hot, _ = encoder_decoder.get_inputs_batch(input_and_target[0])
+            # _, targets_idx = encoder_decoder.encode(input_and_target[1])
             
-            # NBJ comment: 3 dimensional array needed with dimension (batch_size, seq_len, input_size)
-            # TODO: batch size of one currently!
-            inputs_one_hot_3D = [inputs_one_hot]
+            # # NBJ comment: 3 dimensional array needed with dimension (batch_size, seq_len, input_size)
+            # # TODO: batch size of one currently!
+            # inputs_one_hot_3D = [inputs_one_hot]
 
-            # Convert input to tensor
-            inputs_one_hot_3D = torch.Tensor(inputs_one_hot_3D) # permute not needed
+            # # Convert input to tensor
+            # inputs_one_hot_3D = torch.Tensor(inputs_one_hot_3D) # permute not needed
             
-            # Convert target to tensor
-            targets_idx = torch.LongTensor(targets_idx)
+            # # Convert target to tensor
+            # targets_idx = torch.LongTensor(targets_idx)
             
             # Forward pass
             # YOUR CODE HERE!
-            outputs = net.forward(inputs_one_hot_3D)
+            outputs = net.forward(inputs_one_hot)
             
             # Compute loss
             # YOUR CODE HERE!
