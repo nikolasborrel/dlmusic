@@ -1,2 +1,5 @@
-model_serialized_dir = '/Users/nikolasborrel/github/dlmusic_data/serialized_models/'
-midi_dir = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/CLEAN_MIDI_BM_small/'
+import os
+main_dir = os.getcwd()  #the default path should be dlmusic
+root_dir = main_dir[0:-len('/dlmusic')]
+model_serialized_dir = root_dir + '/dlmusic_data/serialized_models/'
+midi_dir = root_dir + '/dlmusic_data/midi_data_out/CLEAN_MIDI_BM_small/'
