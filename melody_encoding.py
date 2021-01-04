@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../note_seq') # needed unless installing forked lib from github
 import note_seq
 from note_seq import melodies_lib
 from note_seq import encoder_decoder
@@ -7,13 +9,16 @@ from note_seq.protobuf import music_pb2
 from note_seq.constants import DEFAULT_QUARTERS_PER_MINUTE
 from note_seq.protobuf.generator_pb2 import GeneratorOptions
 from note_seq.protobuf.music_pb2 import NoteSequence
+import utils.paths as paths
 
-input_file1 = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/melodies/mel1.mid'
-input_file2 = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/melodies/mel2.mid'
-out_file1 = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/melodies/mel1_out.mid'
-out_file2 = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/melodies/mel2_out.mid'
-out_file1_trans = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/melodies/mel1_trans_out.mid'
-out_file1_pred = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/melodies/mel1_pred_out.mid'
+
+mel_path = paths.root_dir + '/dlmusic_data/midi_data_out/melodies/'
+input_file1 = mel_path + 'mel1.mid'
+input_file2 = mel_path + 'mel2.mid'
+out_file1 = mel_path + 'mel1_out.mid'
+out_file2 = mel_path + 'mel2_out.mid'
+out_file1_trans = mel_path + 'mel1_trans_out.mid'
+out_file1_pred = mel_path + 'mel1_pred_out.mid'
 
 # FOR IDEAS OF USING THE OUTPUT (hot encodings) DATA FROM THIS, SEE EVENTUALLY magenta.models.shared.eventss_rnn_model.py
 
