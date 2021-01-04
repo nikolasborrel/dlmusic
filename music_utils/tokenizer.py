@@ -74,11 +74,14 @@ class TokenizerMonophonic():
         sequences is a list of list of note_seq, each inner list corresponding to (part of) a song
         '''
 
-        if len(seq_raw.tempos) != 1 or len(seq_raw.time_signatures) != 1:
-            # TODO: filter on time signatures, e.g. all songs should have the same e.g. 4/4
+        if len(seq_raw.tempos) != 1 or len(seq_raw.time_signatures) != 1:            
             print("skipping song: multiple tempi or time signatures")
             return
         
+        if seq_raw.time_signatures[0].numerator != 4 or seq_raw.time_signatures[0].denominator != 4:
+            print(f"skipping song: only 4/4 time signature supported, got {seq_raw.time_signatures[0].numerator}/{seq_raw.time_signatures[0].denominator}")
+            return
+
         # seq_time_change_split = sequences_lib.split_note_sequence_on_time_changes(seq_transp_c)[0]
 
         split_num_bars = 1        
@@ -145,6 +148,9 @@ class TokenizerMonophonic():
                     melody0.set_length(num_steps_truncated)
                     melody1.set_length(num_steps_truncated)
 
+                    self.debug_encoding_length(melody0, num_steps_truncated-1)
+                    self.debug_encoding_length(melody1, num_steps_truncated-1)
+
                     self._song_parts_lead.append(melody0)
                     self._song_parts_accomp.append(melody1)                    
 
@@ -155,6 +161,11 @@ class TokenizerMonophonic():
                 
                 self._song_parts_lead.append(melody0)                
     
+    def debug_encoding_length(self, melody, expected):
+        input_one_hot, _ = self._encoder_decoder.encode(melody)
+        if len(input_one_hot) != expected:
+            raise Exception(f"wrong length: expected {expected}, got {len(input_one_hot)}")
+
     def to_midi(self, outputs, path_out_dir):
         events = []
         for output in outputs:

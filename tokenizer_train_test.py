@@ -9,8 +9,8 @@ from music_utils.tokenizer import TokenizerMonophonic
 from loaders.dataloader_midi import load_midi_to_seq
 
 #PARAMS
-midi_dir = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/tests/'
-midi_dir_out = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/splitted/'
+midi_dir = '/Users/nikolasborrel/github/dlmusic_data/midi_data/tests/'
+midi_dir_out = '/Users/nikolasborrel/github/dlmusic_data/midi_data/splitted/'
 
 instruments = [0,1]
 
