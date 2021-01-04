@@ -26,6 +26,13 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
         for inputs_one_hot, targets_idx in validation_set:
             optimizer.zero_grad()
 
+            # DIMENSION inputs_one_hot
+            # (batch_size, seq_len, input_size)
+
+            # DIMENSION targets_idx
+            # (batch_size, seq_len)
+
+            
             # # One-hot encode input and target sequence
             # inputs_one_hot, _ = encoder_decoder.get_inputs_batch(input_and_target[0])  # MELODY
             # _, targets_idx = encoder_decoder.encode(input_and_target[1])               # BASS
@@ -57,6 +64,13 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
         # For each sentence in training set
         for inputs_one_hot, targets_idx in training_set:
             optimizer.zero_grad()
+
+            # DIMENSION inputs_one_hot
+            # (batch_size, seq_len, input_size)
+
+            # DIMENSION targets_idx
+            # (batch_size, seq_len)
+
 
             # # One-hot encode input and target sequence
             # inputs_one_hot, _ = encoder_decoder.get_inputs_batch(input_and_target[0])

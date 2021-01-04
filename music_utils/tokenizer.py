@@ -63,19 +63,48 @@ class TokenizerMonophonic():
         
         print(self.stats)
 
+    def _truncate_to_bars(self, note_seq):
+        bar_length_secs = self._calc_bar_length_sec(note_seq)
+        num_bars_trunc = math.floor(note_seq.total_time / bar_length_secs)
+        
+        return sequences_lib.trim_note_sequence(note_seq, 0, num_bars_trunc*bar_length_secs)
+
     def add_song(self, seq_raw: NoteSequence, instruments: List[int], ignore_polyphonic_notes=True):
         '''
         sequences is a list of list of note_seq, each inner list corresponding to (part of) a song
         '''
+        midi_dir_out = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/splitted/'
 
-        seq_transp_c          = self._transpose(seq_raw, 0)
-        seq_time_change_split = sequences_lib.split_note_sequence_on_time_changes(seq_transp_c)[0] # TODO: loop over all sub sequences
-        #seqs_split_silence    = sequences_lib.split_note_sequence_on_silence(seq_time_change_split, instruments[0])
-        #seq_split_silence     = sequences_lib.concatenate_sequences(seqs_split_silence)
-        #seq_split_bars        = self._split_on_bars(seq_split_silence)
-        seq_split_bars        = self._split_on_bars(seq_time_change_split) # TODO: split on silence disabled (seems to remove beats - fix inside sequences_lib)
+        if len(seq_raw.tempos) != 1 or len(seq_raw.time_signatures) != 1:
+            print("Skipping song sequence - multiple tempi or time signatures")
+            return
+        # todo: filter on time signatures, e.g. all songs should have the same e.g. 4/4
+        # seq_time_change_split = sequences_lib.split_note_sequence_on_time_changes(seq_transp_c)[0]
 
-        for seq in seq_split_bars:                        
+        split_num_bars = 1        
+
+        seq_transp_c = self._transpose(seq_raw, 0)
+
+        bar_length_secs = self._calc_bar_length_sec(seq_transp_c) * split_num_bars
+        gap_secs = bar_length_secs * split_num_bars
+
+        seqs_split_silence = sequences_lib.split_note_sequence_on_silence(seq_transp_c, 
+                                                                          instr=instruments[0], 
+                                                                          remove_silence=True, 
+                                                                          gap_seconds=gap_secs)
+
+        seqs_split_silence_trunc = list(map(self._truncate_to_bars, seqs_split_silence))
+        seq_split_silence        = sequences_lib.concatenate_sequences(seqs_split_silence_trunc)
+        seqs_split_bars          = self._split_on_bars(seq_split_silence)
+        
+        # path_out_mel_test = f'{midi_dir_out}test_both_channels.mid'
+        # midi_io.sequence_proto_to_midi_file(seq_split_silence, path_out_mel_test)
+
+        bars_length_sec = self._calc_bar_length_sec(seqs_split_bars[-1]) * self._split_in_bar_chunks
+        if seqs_split_bars[-1].total_time < bars_length_sec:
+            seqs_split_bars = seqs_split_bars[0:-2]
+
+        for seq in seqs_split_bars:                        
             quantized_sequence = sequences_lib.quantize_note_sequence(
                 seq, steps_per_quarter=self._steps_per_quarter)
 
@@ -107,28 +136,16 @@ class TokenizerMonophonic():
                     melody0.set_length(num_steps_truncated)
                     melody1.set_length(num_steps_truncated)
 
-                    # HACK TODO
-                    # 16 sec is 8 bars
-                    if melody0.to_sequence().total_time > 15.75 and melody1.to_sequence().total_time > 15.75 and \
-                        melody0.to_sequence().total_time < 16.15 and melody1.to_sequence().total_time < 16.15:
-                        self._song_parts_lead.append(melody0)
-                        self._song_parts_accomp.append(melody1)
-                    else:
-                        print("WARNING (HACK): total time is not correct [fix]")
+                    self._song_parts_lead.append(melody0)
+                    self._song_parts_accomp.append(melody1)                    
 
             elif len(melody0) > 0:
                 # num_steps_truncated = math.ceil(len(melody0.steps) / melody0.steps_per_bar) * melody0.steps_per_bar
                 num_steps_truncated = self._split_in_bar_chunks * melody0.steps_per_bar
                 melody0.set_length(num_steps_truncated)
-
-                # HACK TODO
-                # 16 sec is 8 bars
-                if melody0.to_sequence().total_time > 15.75 and \
-                    melody0.to_sequence().total_time < 16.15:
-                    self._song_parts_lead.append(melody0)
-                else:
-                    print("WARNING (HACK): total time is not correct [fix]")
-
+                
+                self._song_parts_lead.append(melody0)                
+    
     def to_midi(self, outputs, path_out_dir):
         events = []
         for output in outputs:
@@ -198,17 +215,21 @@ class TokenizerMonophonic():
         
         return int(steps_per_bar_float)
 
-    def _split_on_bars(self, note_seq):
-
+    def _calc_bar_length_sec(self, note_seq):
+        
         if len(note_seq.tempos) != 1:
             raise Exception(f'Only one tempo indication should be present: {len(note_seq.tempos)} found')
 
         qpm = note_seq.tempos[0].qpm
 
         steps_per_bar = self._calc_steps_per_bar(note_seq)
-        bar_length_sec = self._calc_bar_length(qpm, steps_per_bar) * self._split_in_bar_chunks
+        return self._calc_bar_length(qpm, steps_per_bar)
 
-        return sequences_lib.split_note_sequence(note_seq, bar_length_sec) # only works on non-quantized sequences (for some reason...)
+    def _split_on_bars(self, note_seq):
+
+        bars_length_sec = self._calc_bar_length_sec(note_seq) * self._split_in_bar_chunks
+
+        return sequences_lib.split_note_sequence(note_seq, bars_length_sec) # only works on non-quantized sequences (for some reason...)
 
     @property
     def song_parts_lead(self):
