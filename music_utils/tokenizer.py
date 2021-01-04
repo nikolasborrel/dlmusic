@@ -73,12 +73,12 @@ class TokenizerMonophonic():
         '''
         sequences is a list of list of note_seq, each inner list corresponding to (part of) a song
         '''
-        midi_dir_out = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/splitted/'
 
         if len(seq_raw.tempos) != 1 or len(seq_raw.time_signatures) != 1:
-            print("Skipping song sequence - multiple tempi or time signatures")
+            # TODO: filter on time signatures, e.g. all songs should have the same e.g. 4/4
+            print("skipping song: multiple tempi or time signatures")
             return
-        # todo: filter on time signatures, e.g. all songs should have the same e.g. 4/4
+        
         # seq_time_change_split = sequences_lib.split_note_sequence_on_time_changes(seq_transp_c)[0]
 
         split_num_bars = 1        
@@ -88,17 +88,26 @@ class TokenizerMonophonic():
         bar_length_secs = self._calc_bar_length_sec(seq_transp_c) * split_num_bars
         gap_secs = bar_length_secs * split_num_bars
 
+        # TODO: check that the splitted sequences have not been shifted rythimically (e.g. offbeat)
+        #       if melody doesn't start on downbeat
         seqs_split_silence = sequences_lib.split_note_sequence_on_silence(seq_transp_c, 
                                                                           instr=instruments[0], 
                                                                           remove_silence=True, 
                                                                           gap_seconds=gap_secs)
 
+        if len(seqs_split_silence) == 0:
+            # problematic data - skip
+            print("skipping song: no melody to split")
+            return
+
         seqs_split_silence_trunc = list(map(self._truncate_to_bars, seqs_split_silence))
         seq_split_silence        = sequences_lib.concatenate_sequences(seqs_split_silence_trunc)
         seqs_split_bars          = self._split_on_bars(seq_split_silence)
-        
-        # path_out_mel_test = f'{midi_dir_out}test_both_channels.mid'
-        # midi_io.sequence_proto_to_midi_file(seq_split_silence, path_out_mel_test)
+
+        if len(seqs_split_bars) == 0:
+            # TODO: we could eventually pad in the split to bars function
+            print("skipping song: all melody lengths have lengths less than 1 bar")
+            return
 
         bars_length_sec = self._calc_bar_length_sec(seqs_split_bars[-1]) * self._split_in_bar_chunks
         if seqs_split_bars[-1].total_time < bars_length_sec:

@@ -23,15 +23,18 @@ split_in_bar_chunks = 8
 
 # Hyper-parameters
 num_epochs = 100
-training_set, validation_set, test_set, tokenizer \
-    = create_dataset_from_midi(paths.midi_dir, lead_instrument, accomp_instrument, split_in_bar_chunks, print_info=True)
-encoder_decoder = tokenizer.encoder_decoder
-num_sequences = tokenizer.song_count
-vocab_size = tokenizer.vocab_size
+train, val, test, t = create_dataset_from_midi(paths.midi_dir, 
+                                               lead_instrument, 
+                                               accomp_instrument, 
+                                               split_in_bar_chunks, 
+                                               print_info=True)
+encoder_decoder = t.encoder_decoder
+num_sequences = t.song_count
+vocab_size = t.vocab_size
 
 # Initialize a new LSTM network
 net = MusicLSTMNet(vocab_size)
-training_loss, validation_loss = train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encoder_decoder)
+training_loss, validation_loss = train_lstm(net, num_epochs, train, val, vocab_size, encoder_decoder)
 
 torch.save(net, paths.model_serialized_dir + 'music_lstm.pt')
 
