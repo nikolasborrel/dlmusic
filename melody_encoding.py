@@ -52,7 +52,7 @@ melody2.squash(
     min_note,
     max_note,
     transpose_to_key)
-    
+
 inputs_batch = mel_encoder.get_inputs_batch([melody1, melody2], full_length=True)
 
 events = []

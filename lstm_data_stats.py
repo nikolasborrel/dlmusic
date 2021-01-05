@@ -11,6 +11,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import utils.paths as paths
+from utils.tools import flatten
+from collections import Counter
+from models.distributions import get_histograms_from_dataloader
 
 # Set seed such that we always get the same dataset
 np.random.seed(42)
@@ -30,21 +33,9 @@ train, val, test, t = create_dataset_from_midi(paths.midi_dir_small,
                                                print_info=True)
 encoder_decoder = t.encoder_decoder
 num_sequences = t.song_count
-
 vocab_size = t.vocab_size
 
-# Initialize a new LSTM network
-net = MusicLSTMNet(vocab_size)
-#net = LSTM(input_size=vocab_size, hidden_size=50, num_layers=1, num_classes=vocab_size)
-training_loss, validation_loss = train_lstm(net, num_epochs, train, val, vocab_size, encoder_decoder)
-
-torch.save(net, paths.model_serialized_dir + 'music_lstm.pt')
-
-# Plot training and validation loss
-epoch = np.arange(len(training_loss))
-plt.figure()
-plt.plot(epoch, training_loss, 'r', label='Training loss',)
-plt.plot(epoch, validation_loss, 'b', label='Validation loss')
-plt.legend()
-plt.xlabel('Epoch'), plt.ylabel('NLL')
-plt.show()
+mel_notes, bass_notes = get_histograms_from_dataloader(train, vocab_size=vocab_size, \
+                                                       plot=True)
+print('Melody histogram: ', Counter(mel_notes))
+print('Bass histogram: ', Counter(bass_notes))

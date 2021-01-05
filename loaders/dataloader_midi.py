@@ -51,7 +51,6 @@ def create_dataset_from_midi(root_dir, name_instr_lead: Tuple[str,int], name_ins
         raise Exception(f'No songs matching instruments {extract_instruments}')
     
     training_set, validation_set, test_set = create_datasets(t, Dataset)
-
     if print_info:
         print(f'We have {t.song_count} sentences and {t.vocab_size} unique tokens in our dataset (including NO_EVENT = 0 and NOTE_OFF = 1).\n')
         print(f'We have {len(training_set)} samples in the training set.')
@@ -73,7 +72,7 @@ def encode_from_midi(root_dir, name_instr: Tuple[str,int],
         raise Exception(f'No midi files loaded')
 
     print("Tokenize...")
-    t = TokenizerMonophonic(max_bars_chunk=max_bars_chunk, min_note=60, max_note=72)
+    t = TokenizerMonophonic(split_in_bar_chunks=max_bars_chunk, min_note=60, max_note=72)
     t.add_songs(sequences, extract_instruments)
     
     # summarize what was learned

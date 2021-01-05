@@ -3,7 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from utils.tools import timer
 
+@timer
 def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encoder_decoder):
     # Define a loss function and optimizer for this problem
     # YOUR CODE HERE!
@@ -28,7 +30,7 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
 
             # DIMENSION inputs_one_hot
             # (batch_size, seq_len, input_size)
-
+            batch_size, seq_len, input_size = inputs_one_hot.shape
             # DIMENSION targets_idx
             # (batch_size, seq_len)
 
@@ -53,7 +55,7 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
             
             # Compute loss
             # YOUR CODE HERE!
-
+            targets_idx = targets_idx.reshape(batch_size * seq_len)
             loss = criterion(outputs, targets_idx)
             
             # Update loss
@@ -64,6 +66,7 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
         # For each sentence in training set
         for inputs_one_hot, targets_idx in training_set:
             optimizer.zero_grad()
+            batch_size, seq_len, input_size = inputs_one_hot.shape
 
             # DIMENSION inputs_one_hot
             # (batch_size, seq_len, input_size)
@@ -92,6 +95,7 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
             
             # Compute loss
             # YOUR CODE HERE!
+            targets_idx = targets_idx.reshape(batch_size * seq_len)
             loss = criterion(outputs, targets_idx)
             
             # Backward pass

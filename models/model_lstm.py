@@ -7,6 +7,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+
+#device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 class SimpleLSTMNet(nn.Module):
     def __init__(self, vocab_size):
         super(SimpleLSTMNet, self).__init__()
@@ -65,10 +68,10 @@ class MusicLSTMNet(nn.Module):
     def forward(self, x):
         # RNN returns output and last hidden state
         x, (h, c) = self.lstm1(x)        
-        x = self.drop1(x)
+        #x = self.drop1(x)
         
         x, (h, c) = self.lstm2(x)
-        x = self.drop2(x)
+        #x = self.drop2(x)
 
         # Flatten output for feed-forward layer
         x = x.view(-1, self.lstm2.hidden_size)
@@ -79,3 +82,25 @@ class MusicLSTMNet(nn.Module):
         #x = self.softmax(x)
         
         return x
+
+class LSTM(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+        super(LSTM, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, \
+                            batch_first=True)
+        self.fc = nn.Linear(hidden_size, num_classes)
+    
+    def forward(self, x):
+
+        h0 = torch.zeros(self.num_layers, x.size(0), \
+                         self.hidden_size) #.to(device)
+
+        c0 = torch.zeros(self.num_layers, x.size(0), \
+                         self.hidden_size) #.to(device)
+
+        out, _ = self.lstm(x, (h0, c0))
+
+        out = self.fc(out[:, -1, :])
+        return out

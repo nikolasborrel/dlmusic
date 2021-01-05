@@ -5,7 +5,7 @@ sys.path.append('../note_seq') # needed unless installing forked lib from github
 
 import numpy as np
 import matplotlib.pyplot as plt
-from models.model_lstm import MyRecurrentNet
+from models.model_lstm import MusicLSTMNet
 from loaders.dataloader_midi import encode_from_midi
 from evaluation.eval_lstm import eval_lstm
 import torch
@@ -17,8 +17,8 @@ from utils.tools import flatten
 
 path_to_model = paths.model_serialized_dir + 'music_lstm.pt'
 
-path_input_melody  = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/mel_input/'
-path_output_melody = '/Users/nikolasborrel/github/dlmusic_data/midi_data_out/learned/'
+path_input_melody  = paths.root_dir + '/dlmusic_data/midi_data_out/mel_input/'
+path_output_melody = paths.root_dir + '/dlmusic_data/midi_data_out/learned/'
 
 # Set seed such that we always get the same dataset
 np.random.seed(42)

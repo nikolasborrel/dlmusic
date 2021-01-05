@@ -18,7 +18,7 @@ def eval_lstm(net, data_set, vocab_size, encoder_decoder):
 
         # Convert input to tensor            
         inputs_one_hot_3D = torch.Tensor(inputs_one_hot_3D) # permute not needed
-        
+        # Has to be (batch_size=1, seq_len, vocab_size)
         # Forward pass
         outputs = net.forward(inputs_one_hot_3D).data.numpy()    
         outputs_all.extend(outputs)

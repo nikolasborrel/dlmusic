@@ -3,7 +3,7 @@ sys.path.append('../note_seq') # needed unless installing forked lib from github
 
 import numpy as np
 import matplotlib.pyplot as plt
-from models.model_lstm import MusicLSTMNet, LSTM
+from models.model_lstm import MusicLSTMNet
 from loaders.dataloader_midi import create_dataset_from_midi
 from training.train_lstm import train_lstm
 import torch
@@ -23,20 +23,15 @@ split_in_bar_chunks = 8
 
 # Hyper-parameters
 num_epochs = 100
-train, val, test, t = create_dataset_from_midi(paths.midi_dir_small, 
-                                               lead_instrument, 
-                                               accomp_instrument, 
-                                               split_in_bar_chunks, 
-                                               print_info=True)
-encoder_decoder = t.encoder_decoder
-num_sequences = t.song_count
-
-vocab_size = t.vocab_size
+training_set, validation_set, test_set, tokenizer \
+    = create_dataset_from_midi(paths.midi_dir, lead_instrument, accomp_instrument, split_in_bar_chunks, print_info=True)
+encoder_decoder = tokenizer.encoder_decoder
+num_sequences = tokenizer.song_count
+vocab_size = tokenizer.vocab_size
 
 # Initialize a new LSTM network
 net = MusicLSTMNet(vocab_size)
-#net = LSTM(input_size=vocab_size, hidden_size=50, num_layers=1, num_classes=vocab_size)
-training_loss, validation_loss = train_lstm(net, num_epochs, train, val, vocab_size, encoder_decoder)
+training_loss, validation_loss = train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encoder_decoder)
 
 torch.save(net, paths.model_serialized_dir + 'music_lstm.pt')
 
