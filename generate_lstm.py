@@ -14,8 +14,10 @@ import torch.nn.functional as F
 import torch.optim as optim
 import utils.paths as paths
 from utils.tools import flatten
+from note_seq import midi_io
 
-path_to_model = paths.model_serialized_dir + 'music_lstm.pt'
+model_name = 'music_lstm.pt'
+path_to_model = paths.model_serialized_dir + model_name
 
 path_input_melody  = paths.root_dir + '/dlmusic_data/midi_data_out/mel_input/'
 path_output_melody = paths.root_dir + '/dlmusic_data/midi_data_out/learned/'
@@ -28,8 +30,6 @@ lead_instrument   = ('melody',instruments[0])
 
 max_bars = 16
 
-# Hyper-parameters
-num_epochs = 100
 tokenizer = encode_from_midi(path_input_melody, lead_instrument, max_bars, print_info=True)
 encoder_decoder = tokenizer.encoder_decoder
 num_sequences = tokenizer.song_count
@@ -41,4 +41,5 @@ input_song_parts = tokenizer.song_parts_lead
 net = torch.load(path_to_model)
 events = eval_lstm(net, input_song_parts, vocab_size, encoder_decoder)
 
-tokenizer.to_midi(events, path_output_melody)
+tokenizer.to_midi(events, path_output_melody, filename='out.mid')
+midi_io.sequence_proto_to_midi_file(input_song_parts[0].to_sequence(), path_output_melody + 'input.mid')

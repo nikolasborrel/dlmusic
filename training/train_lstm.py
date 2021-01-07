@@ -4,19 +4,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from utils.tools import timer
+from tqdm import tqdm
 
 @timer
-def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encoder_decoder):
+def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encoder_decoder, lr=1e-4):
     # Define a loss function and optimizer for this problem
     # YOUR CODE HERE!
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    #optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    optimizer = optim.Adam(net.parameters(), lr=lr)
 
     # Track loss
     training_loss, validation_loss = [], []
 
     # For each epoch
-    for i in range(num_epochs):
+    for i in tqdm(range(num_epochs)):
         
         # Track loss
         epoch_training_loss = 0
@@ -26,7 +28,7 @@ def train_lstm(net, num_epochs, training_set, validation_set, vocab_size, encode
             
         # For each sentence in validation set
         for inputs_one_hot, targets_idx in validation_set:
-            optimizer.zero_grad()
+            #optimizer.zero_grad()
 
             # DIMENSION inputs_one_hot
             # (batch_size, seq_len, input_size)

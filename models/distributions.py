@@ -6,6 +6,7 @@ from torch.distributions import Distribution
 import matplotlib.pyplot as plt 
 from utils.tools import flatten
 import numpy as np
+from collections import Counter
 
 class ReparameterizedDiagonalGaussian(Distribution):
     """
@@ -52,21 +53,13 @@ def get_histograms_from_dataloader(DataLoader, vocab_size=14, plot=True):
                 note_idxs.append(np.argmax(note))
             batch_idxs.append(note_idxs)
         mel_stats.append(batch_idxs)
-        '''
-        batch_idxs = []
-        for batch in b:
-            note_idxs = []
-            for note in batch:
-                note_idxs.append(np.argmax(note))
-            batch_idxs.append(note_idxs)
-        bass_stats.append(batch_idxs)
-        '''
         bass_stats.append(b.ravel())
 
     mel_notes = flatten(flatten(mel_stats))
     bass_notes = flatten(bass_stats)
 
     if plot:
+        plt.figure()
         fig, axs = plt.subplots(nrows=1,ncols=2)
         axs[0].hist(mel_notes, bins=range(0,vocab_size))
         axs[0].set_title('Melody')
@@ -75,6 +68,8 @@ def get_histograms_from_dataloader(DataLoader, vocab_size=14, plot=True):
         axs[1].hist(bass_notes, bins=range(0,vocab_size))
         axs[1].set_title('Bass')
         plt.show()
+        print('Melody histogram: ', Counter(mel_notes))
+        print('Bass histogram: ', Counter(bass_notes))
     
     return mel_notes, bass_notes
 

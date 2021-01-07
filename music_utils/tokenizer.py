@@ -28,7 +28,7 @@ class TokenizerMonophonic():
 
     DEFAULT_MIN_NOTE = 48
     DEFAULT_MAX_NOTE = 84
-    DEFAULT_STEPS_PER_QUARTER = 4
+    DEFAULT_STEPS_PER_QUARTER = 4 #How many notes to encode in 1/4th of a bar - def  value of 4 --> 16th note quantization
     
     # min=60 max=72 -> one octave
     def __init__(self, split_in_bar_chunks=4, min_note=DEFAULT_MIN_NOTE, max_note=DEFAULT_MAX_NOTE, steps_per_quarter=DEFAULT_STEPS_PER_QUARTER) -> None:
@@ -39,6 +39,8 @@ class TokenizerMonophonic():
         self._split_in_bar_chunks = split_in_bar_chunks
         self._steps_per_quarter = steps_per_quarter
         self.stats = dict()
+        self.midi_names = []
+        self.splits_per_midi = []
 
         self._encoder_decoder = encoder_decoder.OneHotEventSequenceEncoderDecoder(
             melody_encoder_decoder.MelodyOneHotEncoding(min_note, max_note))
@@ -51,6 +53,7 @@ class TokenizerMonophonic():
         '''
         sequences is a list of list of note_seq, each inner list corresponding to (part of) a song
         '''
+        self.n_midi_read = len(seqs)
         
         if len(instruments) == 0:
             raise Exception("Instruments are empty")
@@ -73,9 +76,10 @@ class TokenizerMonophonic():
         '''
         sequences is a list of list of note_seq, each inner list corresponding to (part of) a song
         '''
+        self.midi_names.append(seq_raw.filename)
 
         if len(seq_raw.tempos) != 1 or len(seq_raw.time_signatures) != 1:            
-            print("skipping song: multiple tempi or time signatures")
+            print("skipping song: multiple tempo or time signatures")
             return
         
         if seq_raw.time_signatures[0].numerator != 4 or seq_raw.time_signatures[0].denominator != 4:
@@ -115,7 +119,7 @@ class TokenizerMonophonic():
         bars_length_sec = self._calc_bar_length_sec(seqs_split_bars[-1]) * self._split_in_bar_chunks
         if seqs_split_bars[-1].total_time < bars_length_sec:
             seqs_split_bars = seqs_split_bars[0:-2]
-
+        
         for seq in seqs_split_bars:                        
             quantized_sequence = sequences_lib.quantize_note_sequence(
                 seq, steps_per_quarter=self._steps_per_quarter)
@@ -159,17 +163,23 @@ class TokenizerMonophonic():
                 num_steps_truncated = self._split_in_bar_chunks * melody0.steps_per_bar
                 melody0.set_length(num_steps_truncated)
                 
-                self._song_parts_lead.append(melody0)                
+                self._song_parts_lead.append(melody0)   
+            
+        self.splits_per_midi.append((len(self._song_parts_lead), \
+                                     len(self._song_parts_accomp)))
     
     def debug_encoding_length(self, melody, expected):
         input_one_hot, _ = self._encoder_decoder.encode(melody)
         if len(input_one_hot) != expected:
             raise Exception(f"wrong length: expected {expected}, got {len(input_one_hot)}")
 
-    def to_midi(self, outputs, path_out_dir):
+    def to_midi(self, outputs, path_out_dir, filename='out.mid'):
+        """
+        outputs: one-hot encoded tensor (seq_len, vocab_size)
+        """
         events = []
-        for output in outputs:
-            label = np.argmax(output)
+        for event_one_hot in outputs:  #for each event
+            label = np.argmax(event_one_hot)   #find index of maximum value from one-hot
             events.append(self._encoder_decoder.class_index_to_event(label, events))
 
         print(events)
@@ -177,8 +187,14 @@ class TokenizerMonophonic():
         mel_pred = note_seq.Melody(events)
         seq_pred = mel_pred.to_sequence()
 
-        path_out = path_out_dir + 'out.mid'
+        path_out = path_out_dir + filename
         midi_io.sequence_proto_to_midi_file(seq_pred, path_out)
+    
+    def events_to_melody(events, path_out=None):
+        seq = note_seq.Melody(events)
+        if path_out is not None:
+            midi_io.sequence_proto_to_midi_file(seq.to_sequence(), path_out)
+        return seq
    
     def _transpose(self, note_seq, to_key, 
             min_pitch=constants.MIN_MIDI_PITCH, max_pitch=constants.MAX_MIDI_PITCH) -> NoteSequence:

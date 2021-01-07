@@ -23,9 +23,35 @@ from note_seq.melodies_lib import Melody
 # https://pytorch.org/docs/stable/data.html
 # https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
 
-def create_dataset_from_midi(root_dir, name_instr_lead: Tuple[str,int], name_instr_accomp: Tuple[str,int], 
-    split_in_bar_chunks, print_info=False, recursive=False) -> (DataLoader, DataLoader, DataLoader, TokenizerMonophonic):
-    
+# Global dictionaries: their values can be overwritten locally according to corresponding kwargs 
+tokenizer_kwargs = {'split_in_bar_chunks': 4, 'steps_per_quarter': 1, 'min_note': 60, 'max_note':72}
+
+dataset_split_kwargs = {'p_train': 0.8, 'p_val': 0.1, 'p_test': 0.1,
+                        'batch_size': 1, 'eval_batch_size': 1}
+
+
+
+@timer
+def create_dataset_from_midi(root_dir, 
+                             name_instr_lead: Tuple[str,int], 
+                             name_instr_accomp: Tuple[str,int], 
+                             print_info=False, 
+                             recursive=False,
+                             **kwargs) -> (DataLoader, DataLoader, DataLoader, TokenizerMonophonic):
+    """
+    kwargs: key-word arguments of dataset_split_kwargs and tokenizer_kwargs
+            if some keys are absent the default initialized at the start of the script will be used
+    """
+
+    # Split kwargs into tokenizer_kwargs and dataset_split_kwargs and update them
+    # tokenizer_kwargs
+    common_kwargs = dict(filter(lambda elem: elem[0] in tokenizer_kwargs.keys(), kwargs.items()))
+    tokenizer_kwargs.update(common_kwargs)
+
+    # dataset_split_kwargs
+    common_kwargs = dict(filter(lambda elem: elem[0] in dataset_split_kwargs.keys(), kwargs.items()))
+    dataset_split_kwargs.update(common_kwargs)
+        
     print("Create...")
     extract_names = (name_instr_lead[0], name_instr_accomp[0])
     extract_instruments = [name_instr_lead[1], name_instr_accomp[1]]
@@ -41,7 +67,7 @@ def create_dataset_from_midi(root_dir, name_instr_lead: Tuple[str,int], name_ins
         raise Exception(f'No midi files loaded')
 
     print("Tokenize...")
-    t = TokenizerMonophonic(split_in_bar_chunks=split_in_bar_chunks, min_note=60, max_note=72)
+    t = TokenizerMonophonic(**tokenizer_kwargs)
     t.add_songs(sequences, extract_instruments)
     
     # summarize what was learned
@@ -50,9 +76,10 @@ def create_dataset_from_midi(root_dir, name_instr_lead: Tuple[str,int], name_ins
     if t.song_count == 0:
         raise Exception(f'No songs matching instruments {extract_instruments}')
     
-    training_set, validation_set, test_set = create_datasets(t, Dataset)
+    training_set, validation_set, test_set = create_datasets(t, Dataset, **dataset_split_kwargs)
     if print_info:
         print(f'We have {t.song_count} sentences and {t.vocab_size} unique tokens in our dataset (including NO_EVENT = 0 and NOTE_OFF = 1).\n')
+        #print(f'We have {t._split_in_bar_chunks * 16} events in each sentence')
         print(f'We have {len(training_set)} samples in the training set.')
         print(f'We have {len(validation_set)} samples in the validation set.')
         print(f'We have {len(test_set)} samples in the test set.')
@@ -83,12 +110,17 @@ def encode_from_midi(root_dir, name_instr: Tuple[str,int],
     
     return t
 
-def create_datasets(t: TokenizerMonophonic, dataset_class, p_train=0.8, p_val=0.1, p_test=0.1) -> (DataLoader, DataLoader, DataLoader):
+## dataset_split_kwargs = p_train=0.8, p_val=0.1, p_test=0.1, batch_size=1
+def create_datasets(t: TokenizerMonophonic, dataset_class, p_train=0.8, p_val=0.1, p_test=0.1, \
+                    batch_size=1, eval_batch_size=1) -> (DataLoader, DataLoader, DataLoader):
+    """
+    key-word arguments are dataset_split_kwargs
+    """
     print("create data set...")
     songs = list(zip(t.song_parts_lead, t.song_parts_accomp))
 
-    batch_size = 16
-    eval_batch_size = 16
+    batch_size = 1 #16
+    eval_batch_size = 1 #16
 
     # Define partition sizes
     num_train = int(len(songs)*p_train)

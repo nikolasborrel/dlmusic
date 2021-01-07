@@ -40,7 +40,7 @@ def timer(orig_func):
 def call_counter(func):
     """
     Add as a decorator to a function @call_counter
-    Access locally the number of time being called as func.calls
+    Access locally the number of times being called as func.calls
     """
     def helper(*args, **kwargs):
         helper.calls += 1

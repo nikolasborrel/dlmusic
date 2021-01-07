@@ -11,18 +11,18 @@ import torch.optim as optim
 #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class SimpleLSTMNet(nn.Module):
-    def __init__(self, vocab_size):
+    def __init__(self, vocab_size, hidden_size=512):
         super(SimpleLSTMNet, self).__init__()
         
         # Recurrent layer
         # YOUR CODE HERE!
         self.lstm = nn.LSTM(input_size=vocab_size,
-                            hidden_size=50,
+                            hidden_size=hidden_size,
                             num_layers=1,
                             bidirectional=False)
         
         # Output layer
-        self.l_out = nn.Linear(in_features=50,
+        self.l_out = nn.Linear(in_features=hidden_size,
                                out_features=vocab_size,
                                bias=False)
         
@@ -41,17 +41,17 @@ class SimpleLSTMNet(nn.Module):
 class MusicLSTMNet(nn.Module):
     def __init__(self, vocab_size):
         super(MusicLSTMNet, self).__init__()
-        
+        hs = [100, 50]
         # Recurrent layer
         self.lstm1 = nn.LSTM(input_size=vocab_size,
-                             hidden_size=256,
+                             hidden_size=hs[0],
                              num_layers=3,
                              bidirectional=False)
 
         self.drop1 = nn.Dropout(0.3)
 
-        self.lstm2 = nn.LSTM(input_size=256,
-                             hidden_size=128,
+        self.lstm2 = nn.LSTM(input_size=hs[0],
+                             hidden_size=hs[1],
                              num_layers=3,
                              bidirectional=False)
         
@@ -59,7 +59,7 @@ class MusicLSTMNet(nn.Module):
 
         
         # Output layer
-        self.l_out = nn.Linear(in_features=128,
+        self.l_out = nn.Linear(in_features=hs[1],
                                out_features=vocab_size,
                                bias=False)
         
@@ -68,10 +68,10 @@ class MusicLSTMNet(nn.Module):
     def forward(self, x):
         # RNN returns output and last hidden state
         x, (h, c) = self.lstm1(x)        
-        #x = self.drop1(x)
+        x = self.drop1(x)
         
         x, (h, c) = self.lstm2(x)
-        #x = self.drop2(x)
+        x = self.drop2(x)
 
         # Flatten output for feed-forward layer
         x = x.view(-1, self.lstm2.hidden_size)
@@ -80,7 +80,6 @@ class MusicLSTMNet(nn.Module):
         x = self.l_out(x)
 
         #x = self.softmax(x)
-        
         return x
 
 class LSTM(nn.Module):
