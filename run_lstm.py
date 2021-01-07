@@ -2,7 +2,6 @@ import sys
 sys.path.append('../note_seq') # needed unless installing forked lib from github
 
 import numpy as np
-import pandas as pd 
 import matplotlib.pyplot as plt
 from models.model_lstm import MusicLSTMNet, LSTM, SimpleLSTMNet
 from loaders.dataloader_midi import create_dataset_from_midi
@@ -16,7 +15,7 @@ from utils.tools import write_json
 from models.distributions import get_histograms_from_dataloader
 
 
-model_name = 'test2' #'music_lstm'
+model_name = 'music_lstm'
 dataset_path = paths.midi_dir_small
 
 # Set seed such that we always get the same dataset
