@@ -1,10 +1,17 @@
 # dlmusic
 Exploring the use of Deep Generative Models for live musical performance
 
+## How to run
+Run `run_lstm` to train the LSTM and serialized the learned weights.
+
+Run `generate_lstm.py` for generating a bass lines conditioned on an input melody loading the serialized network weights from running the script `run_lstm`.
+
+Data should be pre-processed running the script `create_subset_form_lakh.py`. See also Section "Pre-process data".
+
 ## Pre-process data
 [see also chapter 6 in the book "Music generation with Magenta"]
 
-Dependecies: 
+Dependencies:
 ```
 > pip install visual_midi
 > pip install tables

@@ -12,7 +12,7 @@ from note_seq.protobuf.music_pb2 import NoteSequence
 import utils.paths as paths
 
 
-mel_path = paths.root_dir + '/dlmusic_data/midi_data_out/melodies/'
+mel_path = paths.root_dir + '/dlmusic_data/midi_data/melodies/'
 input_file1 = mel_path + 'mel1.mid'
 input_file2 = mel_path + 'mel2.mid'
 out_file1 = mel_path + 'mel1_out.mid'
