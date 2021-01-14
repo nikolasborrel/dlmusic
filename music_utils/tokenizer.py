@@ -2,6 +2,7 @@ from collections import OrderedDict
 import math
 import copy
 from music_utils.notes import midi_number_to_note
+import matplotlib.pyplot as plt
 import note_seq
 from note_seq import events_lib
 from note_seq import constants
@@ -18,8 +19,10 @@ from note_seq.protobuf.generator_pb2 import GeneratorOptions
 from note_seq.protobuf.music_pb2 import NoteSequence
 from typing import Tuple, List, Optional
 from utils.tools import flatten
+from collections import Counter
 import numpy as np
-
+import utils.paths as paths
+from note_seq import midi_io
 NO_KEY_SIGNATURE = 'no_key_signatures_found'
 MORE_THAN_ONE_KEY_SIGNATURE = 'more_than_one_key_signature_found'
 SKIPPED_DUE_TO_RANGE = 'skipped_due_to_range_exceeded'
@@ -41,6 +44,8 @@ class TokenizerMonophonic():
         self.stats = dict()
         self.midi_names = []
         self.splits_per_midi = []
+        self.vocab = [-2,-1] + list(range(self._min_note, self._max_note))
+        self.counter = 0
 
         self._encoder_decoder = encoder_decoder.OneHotEventSequenceEncoderDecoder(
             melody_encoder_decoder.MelodyOneHotEncoding(min_note, max_note))
@@ -79,11 +84,11 @@ class TokenizerMonophonic():
         self.midi_names.append(seq_raw.filename)
 
         if len(seq_raw.tempos) != 1 or len(seq_raw.time_signatures) != 1:            
-            print("skipping song: multiple tempo or time signatures")
+            #print("skipping song: multiple tempo or time signatures")
             return
         
         if seq_raw.time_signatures[0].numerator != 4 or seq_raw.time_signatures[0].denominator != 4:
-            print(f"skipping song: only 4/4 time signature supported, got {seq_raw.time_signatures[0].numerator}/{seq_raw.time_signatures[0].denominator}")
+            #print(f"skipping song: only 4/4 time signature supported, got {seq_raw.time_signatures[0].numerator}/{seq_raw.time_signatures[0].denominator}")
             return
 
         # seq_time_change_split = sequences_lib.split_note_sequence_on_time_changes(seq_transp_c)[0]
@@ -104,7 +109,7 @@ class TokenizerMonophonic():
 
         if len(seqs_split_silence) == 0:
             # problematic data - skip
-            print("skipping song: no melody to split")
+            #print("skipping song: no melody to split")
             return
 
         seqs_split_silence_trunc = list(map(self._truncate_to_bars, seqs_split_silence))
@@ -167,6 +172,14 @@ class TokenizerMonophonic():
             
         self.splits_per_midi.append((len(self._song_parts_lead), \
                                      len(self._song_parts_accomp)))
+        
+        #nan = [midi_io.sequence_proto_to_midi_file(seq.to_sequence(), paths.midi_dir_one_song + f'mel_{self.counter}_{i}.mid') for i, seq in enumerate(self._song_parts_lead)]
+        #nan = [midi_io.sequence_proto_to_midi_file(seq.to_sequence(), paths.midi_dir_one_song + f'bass_{self.counter}_{i}.mid') for i, seq in enumerate(self._song_parts_accomp)]
+        self.counter += 1
+
+    def write_dataset(self, path_out):
+        [midi_io.sequence_proto_to_midi_file(seq.to_sequence(), path_out + f'mel_{i}.mid') for i, seq in enumerate(self._song_parts_lead)]
+        [midi_io.sequence_proto_to_midi_file(seq.to_sequence(), path_out + f'bass_{i}.mid') for i, seq in enumerate(self._song_parts_accomp)]
     
     def debug_encoding_length(self, melody, expected):
         input_one_hot, _ = self._encoder_decoder.encode(melody)
@@ -195,7 +208,35 @@ class TokenizerMonophonic():
         if path_out is not None:
             midi_io.sequence_proto_to_midi_file(seq.to_sequence(), path_out)
         return seq
-   
+
+    def plot_melodies_with_vocab(self, mel_seq: Melody, bass_seq: Melody):
+        assert len(mel_seq) == len(bass_seq)
+        vocab = self.vocab
+        vocab[0] = -2
+        vocab[1] = -1
+
+        bass = np.zeros((len(vocab), len(bass_seq)))
+        mel = np.zeros((len(vocab), len(mel_seq)))
+        vocab_to_idx = {key: val for key, val in zip(vocab, reversed(range(0, len(vocab))))}
+
+        for i in range(len(mel_seq)):
+            mel_note = mel_seq._events[i]
+            bass_note = bass_seq._events[i]
+            mel[vocab_to_idx[mel_note], i] = 1
+            bass[vocab_to_idx[bass_note], i] = 1
+        
+        fig, axs = plt.subplots(nrows=1, ncols=2)
+        axs[0].imshow(mel)
+        axs[0].set_title('Melody')
+        
+        axs[1].imshow(bass)
+        axs[1].set_title('Bass')
+
+    def get_melody_histogram(self, melody: Melody):
+        events = melody._events
+        bincount = Counter(events)
+        return sorted(bincount.items())
+
     def _transpose(self, note_seq, to_key, 
             min_pitch=constants.MIN_MIDI_PITCH, max_pitch=constants.MAX_MIDI_PITCH) -> NoteSequence:
         """Transposes a note sequence by the specified amount."""
@@ -288,3 +329,15 @@ class TokenizerMonophonic():
     @property
     def vocab_size(self):
         return self._encoder_decoder.num_classes
+
+"""
+  Melody events are integers in range [-2, 127] (inclusive), where negative
+  values are the special event events: MELODY_NOTE_OFF, and MELODY_NO_EVENT.
+  Non-negative values [0, 127] are note-on events for that midi pitch. A note
+  starts at a non-negative value (that is the pitch), and is held through
+  subsequent MELODY_NO_EVENT events until either another non-negative value is
+  reached (even if the pitch is the same as the previous note), or a
+  MELODY_NOTE_OFF event is reached. A MELODY_NOTE_OFF starts at least one step
+  of silence, which continues through MELODY_NO_EVENT events until the next
+  non-negative value.
+  """
