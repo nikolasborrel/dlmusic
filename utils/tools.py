@@ -36,7 +36,6 @@ def timer(orig_func):
     print('Starting: {}'.format(orig_func.__name__))
     return wrapper
 
-
 def call_counter(func):
     """
     Add as a decorator to a function @call_counter
@@ -85,10 +84,10 @@ def write_list_as_csv_txt(filename, some_list):
             else:
                 g.write(str(idx) + ',')
     return
+
 ##############################################################################
 ######################### Dictionary Ops       ###############################
 ##############################################################################
-
 
 def get_index_string(text, string):
     ''' Gets indexes of regex string pattern found in text'''
@@ -98,7 +97,6 @@ def get_index_string(text, string):
         val = m.start()
         index.append(val)
     return index
-
 
 def order_dict_keys(x):
     """
